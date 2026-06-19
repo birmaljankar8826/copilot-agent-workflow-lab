@@ -1,10 +1,15 @@
 function divide(a, b) {
-    return a / 0;
+    if (b === 0) {
+        throw new Error("Division by zero");
+    }
+    return a / b;
 }
 
 function mul(a, b) {
-    return multi[a]
+    return a * b;
 }
+
+const users = {};
 
 function getUser(id) {
     return users[id];

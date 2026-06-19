@@ -1,0 +1,30 @@
+{
+  "summary": "The code contains several issues including undefined variables, unused parameters, and a division by zero. These issues need to be addressed before approval.",
+  "verdict": "REJECTED",
+  "comments": [
+    {
+      "file": "src/app.js",
+      "line": 1,
+      "severity": "bug",
+      "comment": "Division by zero in the 'divide' function."
+    },
+    {
+      "file": "src/app.js",
+      "line": 5,
+      "severity": "bug",
+      "comment": "'b' is defined but never used in the 'divide' function."
+    },
+    {
+      "file": "src/app.js",
+      "line": 6,
+      "severity": "bug",
+      "comment": "'multi' is not defined, leading to a reference error in the 'mul' function."
+    },
+    {
+      "file": "src/app.js",
+      "line": 10,
+      "severity": "bug",
+      "comment": "'users' is not defined, leading to a reference error in the 'getUser' function."
+    }
+  ]
+}
