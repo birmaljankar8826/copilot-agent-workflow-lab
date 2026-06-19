@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Get the PR branch and base info from the comment's PR
       - name: Get PR details
         id: pr
         uses: actions/github-script@v7
@@ -31,7 +30,7 @@ jobs:
             core.setOutput('head_ref', pr.data.head.ref);
             core.setOutput('head_sha', pr.data.head.sha);
             core.setOutput('base_ref', pr.data.base.ref);
-            console.log(`PR branch: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
+            console.log(`PR: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
 
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -53,8 +52,7 @@ jobs:
           git fetch origin ${{ steps.pr.outputs.base_ref }}
           git diff origin/${{ steps.pr.outputs.base_ref }}...HEAD > diff.txt
           git diff --name-only origin/${{ steps.pr.outputs.base_ref }}...HEAD > files.txt
-          echo "Changed files:"
-          cat files.txt
+          echo "Changed files:"; cat files.txt
 
       - name: Build full context
         run: |
@@ -76,50 +74,88 @@ jobs:
             echo "[]" > eslint_output.json
           fi
 
-      # Re-run the review agent to get fresh review_result.json
-      - name: Run AI Review Agent
+      - name: Run AI Review to get findings
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node scripts/openai-pr-agent.js
 
-      # Fix all issues found in review_result.json
       - name: Run Auto-Fix Agent
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node scripts/auto-fix-agent.js
 
-      # Commit the fixed files back to the PR branch
-      - name: Commit and push fixes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No changes to commit — all issues may already be fixed."
-            echo "NOTHING_TO_COMMIT=true" >> $GITHUB_ENV
-          else
-            git commit -m "🤖 Auto-fix: resolve AI review findings"
-            git push origin ${{ steps.pr.outputs.head_ref }}
-          fi
-
-      # Post a summary comment on the PR
-      - name: Post fix summary
+      # Create a new branch for the fixes — do NOT commit directly to the PR branch
+      - name: Create fix branch and open review PR
         uses: actions/github-script@v7
         env:
-          NOTHING_TO_COMMIT: ${{ env.NOTHING_TO_COMMIT }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         with:
           script: |
-            const fs = require('fs');
-            const summary = fs.readFileSync('fix_summary.txt', 'utf8');
-            const nothingToCommit = process.env.NOTHING_TO_COMMIT === 'true';
+            const fs     = require('fs');
+            const { execSync } = require('child_process');
 
-            const body = nothingToCommit
-              ? `## 🤖 Auto-Fix Agent\n\n✅ No changes needed — all issues are already resolved.`
-              : `## 🤖 Auto-Fix Agent\n\n${summary}\n\n---\nFixes committed to this branch. The review agent will re-run automatically.`;
+            const summary   = fs.readFileSync('fix_summary.txt', 'utf8');
+            const headRef   = process.env.HEAD_REF;
+            const fixBranch = `autofix/${headRef}`;
 
+            // Set up git identity
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Create and switch to the fix branch from current HEAD
+            execSync(`git checkout -b ${fixBranch}`);
+
+            // Stage all fixed files
+            execSync('git add -A');
+
+            // Check if there are actual changes
+            let hasChanges = true;
+            try {
+              execSync('git diff --staged --quiet');
+              hasChanges = false;
+            } catch (e) {
+              hasChanges = true;
+            }
+
+            if (!hasChanges) {
+              // Nothing to fix — post a comment and exit
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                body:  `## 🤖 Auto-Fix Agent\n\n✅ No changes needed — the code looks clean already.`
+              });
+              return;
+            }
+
+            // Commit the fixes
+            execSync(`git commit -m "🤖 Auto-fix: resolve AI review findings"`);
+
+            // Push the fix branch
+            execSync(`git push origin ${fixBranch} --force`);
+
+            // Open a PR: fixBranch → original PR branch (for developer review)
+            let fixPr;
+            try {
+              fixPr = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: `🤖 Auto-fix for #${context.issue.number}: ${headRef}`,
+                head:  fixBranch,
+                base:  headRef,
+                body: `## 🤖 AI Auto-Fix Proposal\n\nThis PR contains AI-generated fixes for the review findings in #${context.issue.number}.\n\n**Please review these changes carefully before merging.**\n\n### What was fixed\n${summary}\n\n---\n> Merge this PR into \`${headRef}\` once you are satisfied with the fixes. The review agent will re-run automatically.`
+              });
+            } catch (e) {
+              // PR might already exist — update it instead
+              console.log('PR creation failed, branch already has an open PR:', e.message);
+            }
+
+            // Post a comment on the original PR linking to the fix PR
+            const prLink = fixPr ? `\n\n👉 **Review the proposed fixes here: #${fixPr.data.number}**` : `\n\nFix branch \`${fixBranch}\` has been updated.`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
-              owner:        context.repo.owner,
-              repo:         context.repo.repo,
-              body
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              body: `## 🤖 Auto-Fix Agent\n\n${summary}${prLink}\n\n> The fixes have **not** been applied yet. Review and merge the fix PR when you are happy with the changes.`
             });
