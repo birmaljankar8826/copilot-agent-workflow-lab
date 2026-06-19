@@ -39,6 +39,10 @@ jobs:
         run: |
           > full_context.txt
           while read file; do
+            # Skip temp/generated files to prevent cat circular write errors
+            case "$file" in
+              *.txt|*.json) continue ;;
+            esac
             if [ -f "$file" ]; then
               echo "===== FILE: $file =====" >> full_context.txt
               cat "$file" >> full_context.txt
