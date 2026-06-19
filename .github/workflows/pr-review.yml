@@ -1,4 +1,4 @@
-name: Hybrid AI PR Review Agent (Fixed)
+name: Hybrid AI PR Review Agent
 
 on:
   pull_request:
@@ -13,26 +13,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Setup Node (use stable LTS)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
+      # 3. Install OpenAI SDK
       - name: Install dependencies
         run: npm install openai
 
+      # 4. Generate Git Diff
       - name: Get PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }} > diff.txt
 
+      # 5. Get changed files list
       - name: Get Changed Files
         run: |
           git diff --name-only origin/${{ github.base_ref }} > files.txt
 
+      # 6. Build full file context
       - name: Build Full Context
         run: |
           > full_context.txt
@@ -45,27 +51,28 @@ jobs:
             fi
           done < files.txt
 
-      - name: Run AI Agent
+      # 7. Run AI Agent (OpenAI happens here)
+      - name: Run AI PR Review Agent
         id: ai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           REVIEW=$(node scripts/openai-pr-agent.js)
 
-          # SAFE OUTPUT (prevents undefined crash)
           if [ -z "$REVIEW" ]; then
-            REVIEW="⚠️ No review generated"
+            REVIEW="⚠️ No AI review generated"
           fi
 
           echo "review<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # 8. Post PR Comment (NO OpenAI here!)
       - name: Post PR Comment
         uses: actions/github-script@v7
         with:
           script: |
-            const review = `${{ steps.ai.outputs.review || '⚠️ Empty AI response' }}`;
+            const review = `${{ steps.ai.outputs.review || '⚠️ Empty review' }}`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
