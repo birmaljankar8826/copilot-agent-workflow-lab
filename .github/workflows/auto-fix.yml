@@ -85,7 +85,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          # Only stage the actual source files that were fixed — not temp files
+          while read file; do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done < files.txt
           if git diff --staged --quiet; then
             echo "NO_CHANGES=true" >> $GITHUB_ENV
           else
