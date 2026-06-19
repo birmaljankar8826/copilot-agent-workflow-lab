@@ -6,38 +6,54 @@ const client = new OpenAI({
 });
 
 async function run() {
-  const diff = fs.readFileSync("diff.txt", "utf8");
-  const context = fs.readFileSync("full_context.txt", "utf8");
+  try {
+    const diff = fs.readFileSync("diff.txt", "utf8");
+    const context = fs.readFileSync("full_context.txt", "utf8");
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: `
-You are a senior engineer reviewing a PR.
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `
+You are a senior software engineer reviewing a PR.
 
-GIT DIFF:
+Analyze this:
+
+--- GIT DIFF ---
 ${diff}
 
-FULL CONTEXT:
+--- FULL CONTEXT ---
 ${context}
 
-Return a clean human-readable PR review:
-- Bugs
-- Security issues
-- Performance issues
-- Summary
-        `,
-      },
-    ],
-    temperature: 0.2,
-  });
+Return ONLY in this format:
 
-  const review = response.choices[0].message.content;
+## 🐞 Bugs
+- ...
 
-  // ⚠️ IMPORTANT: print ONLY final output
-  process.stdout.write(review);
+## 🔐 Security
+- ...
+
+## ⚡ Performance
+- ...
+
+## 🧠 Summary
+...
+          `,
+        },
+      ],
+      temperature: 0.2,
+    });
+
+    const review = response.choices?.[0]?.message?.content || "⚠️ No response from AI";
+
+    // IMPORTANT: ALWAYS output something
+    process.stdout.write(review);
+
+  } catch (err) {
+    console.error("AI Agent Error:", err.message);
+    process.stdout.write("⚠️ AI review failed due to error.");
+  }
 }
 
 run();

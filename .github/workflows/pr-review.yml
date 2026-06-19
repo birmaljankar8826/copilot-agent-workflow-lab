@@ -1,4 +1,4 @@
-name: Hybrid AI PR Review Agent (OpenAI)
+name: Hybrid AI PR Review Agent (Fixed)
 
 on:
   pull_request:
@@ -13,63 +13,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3. Install OpenAI SDK
       - name: Install dependencies
         run: npm install openai
 
-      # 4. Get Git Diff (what changed)
       - name: Get PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }} > diff.txt
 
-      # 5. Get list of changed files
       - name: Get Changed Files
         run: |
           git diff --name-only origin/${{ github.base_ref }} > files.txt
 
-      # 6. Build Full Context (entire changed files)
-      - name: Build Full File Context
+      - name: Build Full Context
         run: |
           > full_context.txt
 
           while read file; do
-            echo "===== FILE: $file =====" >> full_context.txt
-            cat "$file" >> full_context.txt
-            echo -e "\n\n" >> full_context.txt
+            if [ -f "$file" ]; then
+              echo "===== FILE: $file =====" >> full_context.txt
+              cat "$file" >> full_context.txt
+              echo -e "\n\n" >> full_context.txt
+            fi
           done < files.txt
 
-      # 7. Run AI Agent (OpenAI call happens inside script)
-      - name: Run AI PR Review Agent
+      - name: Run AI Agent
         id: ai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           REVIEW=$(node scripts/openai-pr-agent.js)
+
+          # SAFE OUTPUT (prevents undefined crash)
+          if [ -z "$REVIEW" ]; then
+            REVIEW="⚠️ No review generated"
+          fi
+
           echo "review<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # 8. Post PR Comment
       - name: Post PR Comment
         uses: actions/github-script@v7
         with:
           script: |
-            const review = `${{ steps.ai.outputs.review }}`;
+            const review = `${{ steps.ai.outputs.review || '⚠️ Empty AI response' }}`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🤖 Hybrid AI PR Review Agent\n\n${review}`
+              body: `## 🤖 AI PR Review Agent\n\n${review}`
             });
