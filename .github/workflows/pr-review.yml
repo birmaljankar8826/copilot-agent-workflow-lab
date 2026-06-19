@@ -16,6 +16,8 @@ jobs:
       # Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Setup Node (safe LTS)
       - name: Setup Node
@@ -30,7 +32,7 @@ jobs:
       # Get PR Diff (safe + correct)
       - name: Get PR Diff
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
       # Get changed files
