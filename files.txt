@@ -1,4 +1,0 @@
-.github/workflows/auto-fix.yml
-eslint.config.js
-scripts/auto-fix-agent.js
-src/app.js
