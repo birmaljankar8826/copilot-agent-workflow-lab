@@ -1,9 +1,5 @@
 function divide(a, b) {
-    return a / 0;
-}
-
-function mul(a, b) {
-    return multi[a]
+    return a / b;
 }
 
 function getUser(id) {
@@ -12,6 +8,5 @@ function getUser(id) {
 
 module.exports = {
     divide,
-    mul,
     getUser
 };
