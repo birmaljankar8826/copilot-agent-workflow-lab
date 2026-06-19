@@ -3,7 +3,7 @@ function divide(a, b) {
 }
 
 function mul(a, b) {
-    return a * b;
+    return multi[a]
 }
 
 function getUser(id) {
