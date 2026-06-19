@@ -13,38 +13,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Setup Node (safe LTS)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # Install OpenAI SDK
       - name: Install dependencies
         run: npm install openai
 
-      # Get PR Diff (safe + correct)
       - name: Get PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
-      # Get changed files
       - name: Get Changed Files
         run: |
           git diff --name-only origin/${{ github.base_ref }}...HEAD > files.txt
 
-      # Build full file context safely
       - name: Build Full Context
         run: |
           > full_context.txt
-
           while read file; do
             if [ -f "$file" ]; then
               echo "===== FILE: $file =====" >> full_context.txt
@@ -53,34 +46,83 @@ jobs:
             fi
           done < files.txt
 
-      # Run AI Agent
+      # Writes review_result.json and review_verdict.txt
       - name: Run AI Agent
-        id: ai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          REVIEW=$(node scripts/openai-pr-agent.js)
+        run: node scripts/openai-pr-agent.js
 
-          if [ -z "$REVIEW" ]; then
-            REVIEW="⚠️ No review generated"
-          fi
-
-          echo "review<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      # Post PR Comment (SAFE - NO github-script injection issues)
-      - name: Post PR Comment
+      # Post inline review comments directly on the changed lines
+      - name: Post Inline PR Review
         uses: actions/github-script@v7
         env:
-          REVIEW: ${{ steps.ai.outputs.review }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const review = process.env.REVIEW || "⚠️ Empty review";
+            const fs = require('fs');
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "## 🤖 AI PR Review Agent\n\n" + review
-            });
+            let reviewData;
+            try {
+              reviewData = JSON.parse(fs.readFileSync('review_result.json', 'utf8'));
+            } catch (e) {
+              reviewData = { summary: '⚠️ Could not read review result.', verdict: 'UNKNOWN', comments: [] };
+            }
+
+            const verdict  = reviewData.verdict  || 'UNKNOWN';
+            const summary  = reviewData.summary  || '';
+            const comments = reviewData.comments || [];
+
+            const verdictEmoji = verdict === 'APPROVED' ? '✅' : verdict === 'REJECTED' ? '❌' : '⚠️';
+            const reviewBody   = `## 🤖 AI PR Review Agent\n\n${verdictEmoji} **Verdict: ${verdict}**\n\n### 🧠 Summary\n${summary}`;
+
+            // Map AI comments → GitHub inline comment format
+            const inlineComments = comments.map(c => ({
+              path: c.file,
+              line: c.line,
+              side: 'RIGHT',
+              body: `**[${(c.severity || 'ISSUE').toUpperCase()}]** ${c.comment}`
+            }));
+
+            const event = verdict === 'REJECTED' ? 'REQUEST_CHANGES'
+                        : verdict === 'APPROVED' ? 'APPROVE'
+                        : 'COMMENT';
+
+            try {
+              await github.rest.pulls.createReview({
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                pull_number: context.issue.number,
+                commit_id:   process.env.HEAD_SHA,
+                event,
+                body:        reviewBody,
+                comments:    inlineComments
+              });
+              console.log(`✅ Review posted: ${verdict} with ${inlineComments.length} inline comment(s)`);
+            } catch (err) {
+              // Inline comments failed (e.g. line not in diff) — fall back to plain comment
+              console.error('Inline review failed, posting plain comment:', err.message);
+              const fallback = reviewBody + (
+                comments.length
+                  ? '\n\n### Issues Found\n' + comments.map(c =>
+                      `- **\`${c.file}:${c.line}\`** *(${c.severity})*: ${c.comment}`
+                    ).join('\n')
+                  : ''
+              );
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                body:         fallback
+              });
+            }
+
+      # Fail the check so branch protection blocks the merge
+      - name: Block PR if bugs found
+        run: |
+          VERDICT=$(cat review_verdict.txt 2>/dev/null || echo "UNKNOWN")
+          echo "Review verdict: $VERDICT"
+          if [ "$VERDICT" = "REJECTED" ]; then
+            echo "❌ PR blocked — bugs were found. See inline review comments for details."
+            exit 1
+          fi
+          echo "✅ PR approved — no bugs found."
