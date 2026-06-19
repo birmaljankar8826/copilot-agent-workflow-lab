@@ -18,7 +18,7 @@ async function run() {
           content: `
 You are a senior software engineer performing a strict code review.
 
-Review this pull request carefully.
+Analyze the pull request diff below and return a JSON review.
 
 --- GIT DIFF ---
 ${diff}
@@ -26,49 +26,70 @@ ${diff}
 --- FULL CONTEXT ---
 ${context}
 
-Return a review in this exact format:
+INSTRUCTIONS:
+- Read the diff carefully. Each hunk header looks like: @@ -oldStart,oldCount +newStart,newCount @@
+- Use these headers to calculate the exact line number in the NEW version of each file.
+- Only comment on lines that are added (lines starting with +) in the diff.
+- The "file" field must exactly match the path after "b/" in the diff header (e.g. "src/app.js").
+- The "line" field must be the absolute line number in the new version of the file.
 
-## 🐞 Bugs
-- List each bug found, or write "None" if no bugs found
+Respond with ONLY a valid JSON object — no markdown, no explanation:
 
-## 🔐 Security Issues
-- List each security issue, or write "None" if no issues found
+{
+  "summary": "string — brief overall summary of the PR",
+  "verdict": "APPROVED" or "REJECTED",
+  "comments": [
+    {
+      "file": "relative/path/to/file.js",
+      "line": <integer line number in the new file>,
+      "severity": "bug" | "security" | "performance" | "suggestion",
+      "comment": "Detailed explanation of the issue on this line"
+    }
+  ]
+}
 
-## ⚡ Performance Issues
-- List each performance issue, or write "None" if no issues found
-
-## 🧠 Summary
-Brief summary of the changes and overall code quality.
-
-## ✅ Verdict
-Write exactly one of:
-- APPROVED — if no bugs were found
-- REJECTED — if one or more bugs were found
-
-Rules:
-- Only bugs in the "🐞 Bugs" section count toward rejection
-- Security and performance issues alone do not cause rejection
+Verdict rules:
+- "REJECTED" if any comment has severity "bug"
+- "APPROVED" if no bugs found (security/performance/suggestion comments alone do not reject)
+- If no issues at all, return empty comments array and "APPROVED"
           `,
         },
       ],
       temperature: 0.2,
+      response_format: { type: "json_object" },
     });
 
-    const review =
-      response.choices?.[0]?.message?.content ||
-      "⚠️ No AI response generated";
+    const rawContent = response.choices?.[0]?.message?.content || "{}";
 
-    process.stdout.write(review);
+    let reviewData;
+    try {
+      reviewData = JSON.parse(rawContent);
+    } catch (e) {
+      console.error("Failed to parse AI JSON response:", e.message);
+      reviewData = {
+        summary: "⚠️ AI returned invalid JSON. Manual review required.",
+        verdict: "UNKNOWN",
+        comments: [],
+      };
+    }
 
-    // Extract verdict from the review output
-    const verdictMatch = review.match(/##\s*✅\s*Verdict\s*\n[-\s]*(APPROVED|REJECTED)/i);
-    const verdict = verdictMatch ? verdictMatch[1].toUpperCase() : "UNKNOWN";
+    reviewData.verdict = reviewData.verdict || "UNKNOWN";
+    reviewData.summary = reviewData.summary || "No summary provided.";
+    reviewData.comments = Array.isArray(reviewData.comments) ? reviewData.comments : [];
 
-    fs.writeFileSync("review_verdict.txt", verdict);
+    fs.writeFileSync("review_result.json", JSON.stringify(reviewData, null, 2));
+    fs.writeFileSync("review_verdict.txt", reviewData.verdict);
 
+    console.log(`Verdict: ${reviewData.verdict}`);
+    console.log(`Inline comments: ${reviewData.comments.length}`);
   } catch (err) {
     console.error("AI Agent Error:", err.message);
-    process.stdout.write("⚠️ AI review failed safely.");
+    const errorResult = {
+      summary: "⚠️ AI review failed. Please review manually.",
+      verdict: "ERROR",
+      comments: [],
+    };
+    fs.writeFileSync("review_result.json", JSON.stringify(errorResult, null, 2));
     fs.writeFileSync("review_verdict.txt", "ERROR");
   }
 }
