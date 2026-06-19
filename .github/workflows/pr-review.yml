@@ -82,10 +82,46 @@ jobs:
             const summary  = reviewData.summary  || '';
             const comments = reviewData.comments || [];
 
-            const verdictEmoji = verdict === 'APPROVED' ? '✅' : verdict === 'REJECTED' ? '❌' : '⚠️';
-            const reviewBody   = `## 🤖 AI PR Review Agent\n\n${verdictEmoji} **Verdict: ${verdict}**\n\n### 🧠 Summary\n${summary}`;
+            console.log(`Verdict: ${verdict}, Comments to post: ${comments.length}`);
+            console.log('review_result.json:', JSON.stringify(reviewData, null, 2));
 
-            // Step 1: Post the overall review summary (REQUEST_CHANGES / APPROVE)
+            const verdictEmoji = verdict === 'APPROVED' ? '✅' : verdict === 'REJECTED' ? '❌' : '⚠️';
+
+            // Step 1: Try each comment as an inline review comment
+            const failed = [];
+            let posted = 0;
+
+            for (const c of comments) {
+              try {
+                await github.rest.pulls.createReviewComment({
+                  owner:       context.repo.owner,
+                  repo:        context.repo.repo,
+                  pull_number: context.issue.number,
+                  commit_id:   process.env.HEAD_SHA,
+                  path:        c.file,
+                  line:        Number(c.line),
+                  side:        'RIGHT',
+                  body:        `**[${(c.severity || 'ISSUE').toUpperCase()}]** ${c.comment}`
+                });
+                posted++;
+                console.log(`✅ Inline comment: ${c.file}:${c.line}`);
+              } catch (e) {
+                console.error(`❌ Inline failed ${c.file}:${c.line} — ${e.message}`);
+                failed.push(c);
+              }
+            }
+
+            // Step 2: Build review body — include any comments that couldn't be posted inline
+            let reviewBody = `## 🤖 AI PR Review Agent\n\n${verdictEmoji} **Verdict: ${verdict}**\n\n### 🧠 Summary\n${summary}`;
+
+            if (failed.length > 0) {
+              reviewBody += '\n\n### Issues in existing code\n' +
+                failed.map(c =>
+                  `- **\`${c.file}:${c.line}\`** [${(c.severity||'issue').toUpperCase()}]: ${c.comment}`
+                ).join('\n');
+            }
+
+            // Step 3: Submit review with REQUEST_CHANGES / APPROVE event
             const event = verdict === 'REJECTED' ? 'REQUEST_CHANGES'
                         : verdict === 'APPROVED'  ? 'APPROVE'
                         : 'COMMENT';
@@ -99,9 +135,9 @@ jobs:
                 event,
                 body:        reviewBody
               });
-              console.log(`Review submitted: ${verdict}`);
+              console.log(`✅ Review submitted: ${verdict}`);
             } catch (err) {
-              console.error(`Review submission failed: ${err.message}`);
+              console.error(`Review submit failed: ${err.message}`);
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner:        context.repo.owner,
@@ -110,27 +146,7 @@ jobs:
               });
             }
 
-            // Step 2: Post each inline comment individually so one failure does not block others
-            let posted = 0;
-            for (const c of comments) {
-              try {
-                await github.rest.pulls.createReviewComment({
-                  owner:       context.repo.owner,
-                  repo:        context.repo.repo,
-                  pull_number: context.issue.number,
-                  commit_id:   process.env.HEAD_SHA,
-                  path:        c.file,
-                  line:        c.line,
-                  side:        'RIGHT',
-                  body:        `**[${(c.severity || 'ISSUE').toUpperCase()}]** ${c.comment}`
-                });
-                posted++;
-                console.log(`Inline comment posted: ${c.file}:${c.line}`);
-              } catch (e) {
-                console.error(`Inline comment failed ${c.file}:${c.line} — ${e.message}`);
-              }
-            }
-            console.log(`Inline comments: ${posted}/${comments.length} posted`);
+            console.log(`Inline: ${posted}/${comments.length} posted, ${failed.length} in summary`);
 
       # Fail the check so branch protection blocks the merge
       - name: Block PR if bugs found
