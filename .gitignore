@@ -1,2 +1,11 @@
 node_modules/
 package-lock.json
+
+# Workflow temp files
+diff.txt
+files.txt
+full_context.txt
+eslint_output.json
+review_result.json
+review_verdict.txt
+fix_summary.txt
