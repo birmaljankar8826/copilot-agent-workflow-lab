@@ -2,15 +2,18 @@ name: PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types:
+      - opened
+      - synchronize
 
 jobs:
   review:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: PR Information
+      - name: PR Trigger
         run: |
-          echo "PR Review Triggered"
+          echo "PR Review Started"
