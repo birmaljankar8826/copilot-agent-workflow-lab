@@ -1,26 +1,75 @@
-name: PR Review
+name: Hybrid AI PR Review Agent (OpenAI)
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
-  lint:
+  ai-review:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # 1. Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Dependencies
-        run: npm install
+      # 3. Install OpenAI SDK
+      - name: Install dependencies
+        run: npm install openai
 
-      - name: Run ESLint
-        run: npm run lint
+      # 4. Get Git Diff (what changed)
+      - name: Get PR Diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }} > diff.txt
+
+      # 5. Get list of changed files
+      - name: Get Changed Files
+        run: |
+          git diff --name-only origin/${{ github.base_ref }} > files.txt
+
+      # 6. Build Full Context (entire changed files)
+      - name: Build Full File Context
+        run: |
+          > full_context.txt
+
+          while read file; do
+            echo "===== FILE: $file =====" >> full_context.txt
+            cat "$file" >> full_context.txt
+            echo -e "\n\n" >> full_context.txt
+          done < files.txt
+
+      # 7. Run AI Agent (OpenAI call happens inside script)
+      - name: Run AI PR Review Agent
+        id: ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          REVIEW=$(node scripts/openai-pr-agent.js)
+          echo "review<<EOF" >> $GITHUB_OUTPUT
+          echo "$REVIEW" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 8. Post PR Comment
+      - name: Post PR Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const review = `${{ steps.ai.outputs.review }}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🤖 Hybrid AI PR Review Agent\n\n${review}`
+            });
