@@ -84,3 +84,14 @@ jobs:
               repo: context.repo.repo,
               body: "## 🤖 AI PR Review Agent\n\n" + review
             });
+
+      # Block PR if bugs were found
+      - name: Block PR if bugs found
+        run: |
+          VERDICT=$(cat review_verdict.txt 2>/dev/null || echo "UNKNOWN")
+          echo "Review verdict: $VERDICT"
+          if [ "$VERDICT" = "REJECTED" ]; then
+            echo "❌ PR blocked — bugs were found during AI code review. See PR comment for details."
+            exit 1
+          fi
+          echo "✅ PR approved — no bugs found."

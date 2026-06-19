@@ -16,7 +16,7 @@ async function run() {
         {
           role: "user",
           content: `
-You are a senior software engineer.
+You are a senior software engineer performing a strict code review.
 
 Review this pull request carefully.
 
@@ -26,18 +26,28 @@ ${diff}
 --- FULL CONTEXT ---
 ${context}
 
-Return a clean review in this format:
+Return a review in this exact format:
 
 ## 🐞 Bugs
-- 
+- List each bug found, or write "None" if no bugs found
 
 ## 🔐 Security Issues
-- 
+- List each security issue, or write "None" if no issues found
 
 ## ⚡ Performance Issues
-- 
+- List each performance issue, or write "None" if no issues found
 
 ## 🧠 Summary
+Brief summary of the changes and overall code quality.
+
+## ✅ Verdict
+Write exactly one of:
+- APPROVED — if no bugs were found
+- REJECTED — if one or more bugs were found
+
+Rules:
+- Only bugs in the "🐞 Bugs" section count toward rejection
+- Security and performance issues alone do not cause rejection
           `,
         },
       ],
@@ -48,12 +58,18 @@ Return a clean review in this format:
       response.choices?.[0]?.message?.content ||
       "⚠️ No AI response generated";
 
-    // ALWAYS output safely
     process.stdout.write(review);
+
+    // Extract verdict from the review output
+    const verdictMatch = review.match(/##\s*✅\s*Verdict\s*\n[-\s]*(APPROVED|REJECTED)/i);
+    const verdict = verdictMatch ? verdictMatch[1].toUpperCase() : "UNKNOWN";
+
+    fs.writeFileSync("review_verdict.txt", verdict);
 
   } catch (err) {
     console.error("AI Agent Error:", err.message);
     process.stdout.write("⚠️ AI review failed safely.");
+    fs.writeFileSync("review_verdict.txt", "ERROR");
   }
 }
 
