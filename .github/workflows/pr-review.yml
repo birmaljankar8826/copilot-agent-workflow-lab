@@ -62,7 +62,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node scripts/openai-pr-agent.js
 
-      # Post inline review comments directly on the changed lines
+      # Post review summary + individual inline comments
       - name: Post Inline PR Review
         uses: actions/github-script@v7
         env:
@@ -85,16 +85,9 @@ jobs:
             const verdictEmoji = verdict === 'APPROVED' ? '✅' : verdict === 'REJECTED' ? '❌' : '⚠️';
             const reviewBody   = `## 🤖 AI PR Review Agent\n\n${verdictEmoji} **Verdict: ${verdict}**\n\n### 🧠 Summary\n${summary}`;
 
-            // Map AI comments → GitHub inline comment format
-            const inlineComments = comments.map(c => ({
-              path: c.file,
-              line: c.line,
-              side: 'RIGHT',
-              body: `**[${(c.severity || 'ISSUE').toUpperCase()}]** ${c.comment}`
-            }));
-
+            // Step 1: Post the overall review summary (REQUEST_CHANGES / APPROVE)
             const event = verdict === 'REJECTED' ? 'REQUEST_CHANGES'
-                        : verdict === 'APPROVED' ? 'APPROVE'
+                        : verdict === 'APPROVED'  ? 'APPROVE'
                         : 'COMMENT';
 
             try {
@@ -104,27 +97,40 @@ jobs:
                 pull_number: context.issue.number,
                 commit_id:   process.env.HEAD_SHA,
                 event,
-                body:        reviewBody,
-                comments:    inlineComments
+                body:        reviewBody
               });
-              console.log(`✅ Review posted: ${verdict} with ${inlineComments.length} inline comment(s)`);
+              console.log(`Review submitted: ${verdict}`);
             } catch (err) {
-              // Inline comments failed (e.g. line not in diff) — fall back to plain comment
-              console.error('Inline review failed, posting plain comment:', err.message);
-              const fallback = reviewBody + (
-                comments.length
-                  ? '\n\n### Issues Found\n' + comments.map(c =>
-                      `- **\`${c.file}:${c.line}\`** *(${c.severity})*: ${c.comment}`
-                    ).join('\n')
-                  : ''
-              );
+              console.error(`Review submission failed: ${err.message}`);
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner:        context.repo.owner,
                 repo:         context.repo.repo,
-                body:         fallback
+                body:         reviewBody
               });
             }
+
+            // Step 2: Post each inline comment individually so one failure does not block others
+            let posted = 0;
+            for (const c of comments) {
+              try {
+                await github.rest.pulls.createReviewComment({
+                  owner:       context.repo.owner,
+                  repo:        context.repo.repo,
+                  pull_number: context.issue.number,
+                  commit_id:   process.env.HEAD_SHA,
+                  path:        c.file,
+                  line:        c.line,
+                  side:        'RIGHT',
+                  body:        `**[${(c.severity || 'ISSUE').toUpperCase()}]** ${c.comment}`
+                });
+                posted++;
+                console.log(`Inline comment posted: ${c.file}:${c.line}`);
+              } catch (e) {
+                console.error(`Inline comment failed ${c.file}:${c.line} — ${e.message}`);
+              }
+            }
+            console.log(`Inline comments: ${posted}/${comments.length} posted`);
 
       # Fail the check so branch protection blocks the merge
       - name: Block PR if bugs found
