@@ -1,5 +1,5 @@
 function divide(a, b) {
-    return a / 0;
+    return a / b;
 }
 
 function mul(a, b) {
