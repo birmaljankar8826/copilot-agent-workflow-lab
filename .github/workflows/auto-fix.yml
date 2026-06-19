@@ -1,0 +1,125 @@
+name: AI Auto-Fix Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-fix:
+    # Only run when someone comments /fix on a PR
+    if: |
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/fix')
+    runs-on: ubuntu-latest
+
+    steps:
+      # Get the PR branch and base info from the comment's PR
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+            core.setOutput('base_ref', pr.data.base.ref);
+            console.log(`PR branch: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref:         ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+          token:       ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install openai eslint
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ steps.pr.outputs.base_ref }}
+          git diff origin/${{ steps.pr.outputs.base_ref }}...HEAD > diff.txt
+          git diff --name-only origin/${{ steps.pr.outputs.base_ref }}...HEAD > files.txt
+          echo "Changed files:"
+          cat files.txt
+
+      - name: Build full context
+        run: |
+          > full_context.txt
+          while read file; do
+            if [ -f "$file" ]; then
+              echo "===== FILE: $file =====" >> full_context.txt
+              cat "$file" >> full_context.txt
+              echo -e "\n\n" >> full_context.txt
+            fi
+          done < files.txt
+
+      - name: Run ESLint
+        run: |
+          JS_FILES=$(grep '\.js$' files.txt | tr '\n' ' ')
+          if [ -n "$JS_FILES" ]; then
+            npx eslint $JS_FILES --format json > eslint_output.json || true
+          else
+            echo "[]" > eslint_output.json
+          fi
+
+      # Re-run the review agent to get fresh review_result.json
+      - name: Run AI Review Agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/openai-pr-agent.js
+
+      # Fix all issues found in review_result.json
+      - name: Run Auto-Fix Agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/auto-fix-agent.js
+
+      # Commit the fixed files back to the PR branch
+      - name: Commit and push fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit — all issues may already be fixed."
+            echo "NOTHING_TO_COMMIT=true" >> $GITHUB_ENV
+          else
+            git commit -m "🤖 Auto-fix: resolve AI review findings"
+            git push origin ${{ steps.pr.outputs.head_ref }}
+          fi
+
+      # Post a summary comment on the PR
+      - name: Post fix summary
+        uses: actions/github-script@v7
+        env:
+          NOTHING_TO_COMMIT: ${{ env.NOTHING_TO_COMMIT }}
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('fix_summary.txt', 'utf8');
+            const nothingToCommit = process.env.NOTHING_TO_COMMIT === 'true';
+
+            const body = nothingToCommit
+              ? `## 🤖 Auto-Fix Agent\n\n✅ No changes needed — all issues are already resolved.`
+              : `## 🤖 Auto-Fix Agent\n\n${summary}\n\n---\nFixes committed to this branch. The review agent will re-run automatically.`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              body
+            });
