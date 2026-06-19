@@ -6,7 +6,10 @@ module.exports = [
       sourceType: "commonjs"
     },
     rules: {
-      "no-undef": "error"
+      "no-undef": "error",
+      "no-unused-vars": "error",
+      "no-unreachable": "error",
+      "no-undef-init": "error"
     }
   }
 ];

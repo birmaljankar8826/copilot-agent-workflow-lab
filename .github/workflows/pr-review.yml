@@ -24,7 +24,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install openai
+        run: npm install openai eslint
 
       - name: Get PR Diff
         run: |
@@ -45,6 +45,16 @@ jobs:
               echo -e "\n\n" >> full_context.txt
             fi
           done < files.txt
+
+      # Run ESLint on changed JS files — deterministic bug detection
+      - name: Run ESLint
+        run: |
+          JS_FILES=$(grep '\.js$' files.txt | tr '\n' ' ')
+          if [ -n "$JS_FILES" ]; then
+            npx eslint $JS_FILES --format json > eslint_output.json || true
+          else
+            echo "[]" > eslint_output.json
+          fi
 
       # Writes review_result.json and review_verdict.txt
       - name: Run AI Agent
