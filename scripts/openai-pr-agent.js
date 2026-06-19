@@ -6,60 +6,17 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-/**
- * Parse the git diff and return a map of { filePath -> Set<lineNumber> }
- * containing every line number (in the NEW file) that appears in any diff hunk.
- * GitHub's inline comment API only accepts line numbers within this set.
- */
-function parseDiffLineRanges(diffText) {
-  const ranges = {};
-  let currentFile = null;
-  let newLine = 0;
-
-  for (const line of diffText.split("\n")) {
-    // New file marker: +++ b/src/app.js
-    const fileMatch = line.match(/^\+\+\+ b\/(.+)/);
-    if (fileMatch) {
-      currentFile = fileMatch[1].trim();
-      if (!ranges[currentFile]) ranges[currentFile] = new Set();
-      continue;
-    }
-
-    // Hunk header: @@ -old,count +newStart,count @@
-    const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if (hunkMatch) {
-      newLine = parseInt(hunkMatch[1], 10) - 1;
-      continue;
-    }
-
-    if (!currentFile) continue;
-    if (line.startsWith("---") || line.startsWith("+++")) continue;
-    if (line.startsWith("\\")) continue; // "No newline at end of file"
-
-    if (line.startsWith("-")) {
-      // Removed line — does not exist in new file, no increment
-    } else {
-      // Added (+) or context line — exists in new file
-      newLine++;
-      ranges[currentFile].add(newLine);
-    }
-  }
-
-  return ranges;
-}
-
-// Convert ESLint JSON output → structured comment objects
 function parseEslintFindings() {
   try {
     const raw = fs.readFileSync("eslint_output.json", "utf8");
     const results = JSON.parse(raw);
     const findings = [];
-    const cwd = process.cwd().replace(/\\/g, "/");
+    const cwd = process.cwd().replace(/\\/g, "/").replace(/\/?$/, "/");
 
     for (const fileResult of results) {
       const relPath = fileResult.filePath
         .replace(/\\/g, "/")
-        .replace(cwd + "/", "");
+        .replace(cwd, "");
 
       for (const msg of fileResult.messages) {
         if (msg.severity === 2) {
@@ -74,6 +31,7 @@ function parseEslintFindings() {
     }
     return findings;
   } catch (e) {
+    console.error("ESLint parse error:", e.message);
     return [];
   }
 }
@@ -83,7 +41,6 @@ async function run() {
     const diff    = fs.readFileSync("diff.txt", "utf8");
     const context = fs.readFileSync("full_context.txt", "utf8");
 
-    const diffLineRanges = parseDiffLineRanges(diff);
     const eslintFindings = parseEslintFindings();
     const eslintSummary  = eslintFindings.length
       ? eslintFindings.map(f => `- ${f.file}:${f.line} — ${f.comment}`).join("\n")
@@ -97,30 +54,29 @@ async function run() {
           content: `
 You are a senior software engineer performing a thorough code review.
 
-Review ALL of the code in the changed files — both new and existing code.
+Review ALL code in the changed files — both new and existing lines.
 
---- GIT DIFF (what changed) ---
+--- GIT DIFF ---
 ${diff}
 
---- FULL FILE CONTENT (review the entire file, not just the diff) ---
+--- FULL FILE CONTENT ---
 ${context}
 
---- ESLINT STATIC ANALYSIS (confirmed bugs — always include these) ---
+--- ESLINT FINDINGS (confirmed bugs, always include) ---
 ${eslintSummary}
 
-WHAT TO LOOK FOR in the entire file:
-- Undefined or wrong variable names (e.g. using a variable that doesn't exist)
-- Unused or ignored function parameters
-- Division by zero risks
+Look for ALL of the following across the entire file:
+- Undefined variables or wrong identifiers
+- Unused parameters
+- Division by zero
 - Missing input validation
-- Logic errors or wrong return values
-- Security issues (injection, unsafe eval, etc.)
-- Null / undefined access without guards
-- Any other bugs, even in unchanged lines
+- Wrong return values or logic errors
+- Security vulnerabilities
+- Null/undefined access without guards
 
-RESPONSE FORMAT — ONLY valid JSON, no markdown:
+RESPOND with ONLY valid JSON (no markdown):
 {
-  "summary": "Overall summary of the PR and all issues found",
+  "summary": "Overall summary of issues found",
   "verdict": "APPROVED" or "REJECTED",
   "comments": [
     {
@@ -132,10 +88,11 @@ RESPONSE FORMAT — ONLY valid JSON, no markdown:
   ]
 }
 
-VERDICT RULES:
-- "REJECTED" if ANY comment has severity "bug" or "security"
-- "APPROVED" only if zero bugs and zero security issues
-- Report every issue found — do not skip issues in unchanged code
+RULES:
+- Use the line number from the FULL FILE CONTENT (absolute line number in the file)
+- Report issues on ALL lines, not just added lines
+- verdict = "REJECTED" if any bug or security issue exists
+- verdict = "APPROVED" only if zero bugs and zero security issues
           `,
         },
       ],
@@ -154,14 +111,14 @@ VERDICT RULES:
     }
 
     reviewData.verdict  = reviewData.verdict  || "UNKNOWN";
-    reviewData.summary  = reviewData.summary  || "No summary provided.";
+    reviewData.summary  = reviewData.summary  || "No summary.";
     reviewData.comments = Array.isArray(reviewData.comments) ? reviewData.comments : [];
 
     // Merge ESLint findings — deduplicate by file+line
     const seen = new Set(reviewData.comments.map(c => `${c.file}:${c.line}`));
-    for (const finding of eslintFindings) {
-      if (!seen.has(`${finding.file}:${finding.line}`)) {
-        reviewData.comments.push(finding);
+    for (const f of eslintFindings) {
+      if (!seen.has(`${f.file}:${f.line}`)) {
+        reviewData.comments.push(f);
       }
     }
 
@@ -172,40 +129,17 @@ VERDICT RULES:
       reviewData.verdict = "REJECTED";
     }
 
-    // Split: inline comments (on diff lines) vs summary issues (on non-diff lines)
-    const inlineComments  = [];
-    const summaryIssues   = [];
-
-    for (const comment of reviewData.comments) {
-      const fileRanges = diffLineRanges[comment.file];
-      if (fileRanges && fileRanges.has(comment.line)) {
-        inlineComments.push(comment);
-      } else {
-        summaryIssues.push(comment);
-      }
-    }
-
-    // Append non-diff issues to the summary so they are never lost
-    if (summaryIssues.length > 0) {
-      const issueList = summaryIssues
-        .map(i => `- \`${i.file}:${i.line}\` **[${i.severity.toUpperCase()}]**: ${i.comment}`)
-        .join("\n");
-      reviewData.summary += `\n\n### Issues in existing code (outside diff)\n${issueList}`;
-    }
-
-    // Only inline-commentable issues go into the comments array
-    reviewData.comments = inlineComments;
-
     fs.writeFileSync("review_result.json", JSON.stringify(reviewData, null, 2));
     fs.writeFileSync("review_verdict.txt", reviewData.verdict);
 
     console.log(`Verdict: ${reviewData.verdict}`);
-    console.log(`Inline comments: ${inlineComments.length}, Summary issues: ${summaryIssues.length}`);
+    console.log(`Total comments: ${reviewData.comments.length} (ESLint: ${eslintFindings.length})`);
+    console.log("Comments:", JSON.stringify(reviewData.comments, null, 2));
   } catch (err) {
     console.error("AI Agent Error:", err.message);
     const eslintFindings = parseEslintFindings();
     const errorResult = {
-      summary: "⚠️ AI review failed. ESLint findings attached.",
+      summary: "⚠️ AI review failed. Showing ESLint findings only.",
       verdict: eslintFindings.length > 0 ? "REJECTED" : "ERROR",
       comments: eslintFindings,
     };
