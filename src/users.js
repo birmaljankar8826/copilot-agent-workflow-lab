@@ -1,3 +1,5 @@
+const users = []; 
+
 function getUsers() {
     return users;
 }
