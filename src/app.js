@@ -1,11 +1,15 @@
 function divide(a, b) {
-    return a / 0;
+    if (b === 0) {
+        throw new Error("Division by zero is not allowed.");
+    }
+    return a / b;
 }
 
 function mul(a, b) {
-    return a * 0;
+    return a * b;
 }
 
+const users = {}; // Assuming users is an object that holds user data
 
 function getUser(id) {
     return users[id];
