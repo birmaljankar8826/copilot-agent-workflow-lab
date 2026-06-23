@@ -1,3 +1,15 @@
+const jestGlobals = {
+  jest:       "readonly",
+  describe:   "readonly",
+  it:         "readonly",
+  test:       "readonly",
+  expect:     "readonly",
+  beforeEach: "readonly",
+  afterEach:  "readonly",
+  beforeAll:  "readonly",
+  afterAll:   "readonly",
+};
+
 const nodeGlobals = {
   console:      "readonly",
   process:      "readonly",
@@ -43,6 +55,21 @@ module.exports = [
     rules: {
       "no-undef":      "error",
       "no-unused-vars":"error",
+      "no-unreachable":"error",
+      "no-undef-init": "error"
+    }
+  },
+  // Override for test files — add Jest globals so ESLint doesn't flag them
+  {
+    files: ["**/*.test.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType:  "commonjs",
+      globals:     { ...nodeGlobals, ...jestGlobals }
+    },
+    rules: {
+      "no-undef":      "error",
+      "no-unused-vars":"warn",
       "no-unreachable":"error",
       "no-undef-init": "error"
     }
