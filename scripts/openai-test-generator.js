@@ -114,8 +114,12 @@ async function run() {
 
   } catch (err) {
     console.error(err);
-    process.exit(1);
+    throw err;
   }
 }
 
-run();
+if (require.main === module) {
+  run().catch(() => process.exit(1));
+}
+
+module.exports = { getTestFilePath, generateTestForFile, run };
