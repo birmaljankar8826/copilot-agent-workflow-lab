@@ -1,30 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
-
-let users = [
-    { id: '1', name: 'Alice Johnson', email: 'alice@example.com', role: 'admin', createdAt: new Date('2024-01-15') },
-    { id: '2', name: 'Bob Smith', email: 'bob@example.com', role: 'user', createdAt: new Date('2024-02-20') },
-    { id: '3', name: 'Carol White', email: 'carol@example.com', role: 'user', createdAt: new Date('2024-03-10') },
-];
-
-// BUG: No input validation — name/email/role are not validated before inserting
-function createUser(name, email, role = 'user') {
-    const existingUser = users.find(u => u.email === email);
-    if (existingUser) {
-        throw new Error('User already exists');
-    }
-
-    const newUser = {
-        id: uuidv4(),
-        name,
-        email,
-        role,
-        createdAt: new Date(),
-    };
-
-    users.push(newUser);
-    // BUG: Returns the full mutable object reference instead of a copy
-    return newUser;
-}
+const users = []; 
 
 function getUsers() {
     // BUG: Returns the internal array directly — callers can mutate it
