@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   ai-review:
+    if: |
+      github.event.pull_request.head.commit.author.name != 'github-actions[bot]' &&
+      !contains(github.event.pull_request.head.commit.message, '🤖 Auto-fix')
     runs-on: ubuntu-latest
 
     steps:
