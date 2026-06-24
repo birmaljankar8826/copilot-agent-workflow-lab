@@ -1,0 +1,92 @@
+name: AI Test Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch to run tests on
+        required: true
+        default: development
+      pr_number:
+        description: PR number for comments
+        required: true
+      attempt:
+        description: Attempt number (max 3)
+        required: true
+        default: '1'
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: write
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Jest
+        id: jest
+        run: |
+          npm test -- --coverage 2>&1 | tee jest_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Post Success Comment
+        if: steps.jest.outputs.exit_code == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('jest_output.txt', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number('${{ inputs.pr_number }}'),
+              body: `## ✅ AI Test Runner — All Tests Passed (Attempt ${{ inputs.attempt }})\n\n\`\`\`\n${output.slice(-3000)}\n\`\`\``
+            });
+
+      - name: Trigger Test Fix Agent
+        if: steps.jest.outputs.exit_code != '0' && inputs.attempt < '3'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-fix-agent.yml',
+              ref: '${{ inputs.base_branch }}',
+              inputs: {
+                base_branch: '${{ inputs.base_branch }}',
+                pr_number: '${{ inputs.pr_number }}',
+                attempt: String(Number('${{ inputs.attempt }}') + 1)
+              }
+            });
+            console.log('Test Fix Agent triggered for attempt ' + (Number('${{ inputs.attempt }}') + 1));
+
+      - name: Post Failure Comment
+        if: steps.jest.outputs.exit_code != '0' && inputs.attempt >= '3'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('jest_output.txt', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number('${{ inputs.pr_number }}'),
+              body: `## ❌ AI Test Runner — Tests Still Failing After 3 Attempts\n\nManual intervention required. Please review the generated test files.\n\n\`\`\`\n${output.slice(-3000)}\n\`\`\``
+            });
