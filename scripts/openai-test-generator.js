@@ -81,8 +81,7 @@ async function run() {
       .filter(Boolean)
       .filter(f => f.endsWith(".js"))
       .filter(f => !f.includes(".test."))
-      .filter(f => !f.startsWith("tests/"))
-      .filter(f => !f.startsWith("scripts/"));
+      .filter(f => !f.startsWith("tests/"));
 
     const generated = [];
 

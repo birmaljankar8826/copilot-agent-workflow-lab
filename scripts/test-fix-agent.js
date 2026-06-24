@@ -100,7 +100,7 @@ async function run() {
         continue;
       }
 
-      // Derive source file: tests/src/users.test.js → src/users.js
+      // Derive source file: tests/<dir>/<name>.test.js → <dir>/<name>.js
       const sourceFile = testFile.replace(/^tests\//, '').replace(/\.test\.js$/, '.js');
       const fileErrors = extractErrorsForFile(jestOutput, testFile);
 
