@@ -47,7 +47,9 @@ jobs:
           git config --global user.name "AI Test Generator"
           git config --global user.email "actions@github.com"
 
-          git add tests/ generated_tests.json
+          # Stage test files only — check this BEFORE adding generated_tests.json
+          # so a newly created empty generated_tests.json doesn't fool the diff check
+          git add tests/
 
           if git diff --cached --quiet; then
             echo "No test files generated."
@@ -55,6 +57,7 @@ jobs:
             exit 0
           fi
 
+          git add generated_tests.json
           git commit -m "chore: AI generated unit tests"
           git push origin HEAD:${{ github.event.pull_request.base.ref }}
           echo "tests_generated=true" >> $GITHUB_OUTPUT

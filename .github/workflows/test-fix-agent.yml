@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Jest to Capture Errors
         run: |
-          npm test -- 2>&1 | tee jest_output.txt || true
+          npm test -- --passWithNoTests 2>&1 | tee jest_output.txt || true
 
       - name: Fix Failing Tests
         env:

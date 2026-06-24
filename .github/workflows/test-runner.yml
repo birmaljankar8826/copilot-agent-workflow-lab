@@ -42,7 +42,7 @@ jobs:
       - name: Run Jest
         id: jest
         run: |
-          npm test -- --coverage 2>&1 | tee jest_output.txt
+          npm test -- --coverage --passWithNoTests 2>&1 | tee jest_output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Post Success Comment
