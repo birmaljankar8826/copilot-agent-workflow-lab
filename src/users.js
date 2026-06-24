@@ -1,13 +1,23 @@
 const users = []; 
 
+function createUser(user) {
+    if (!user.id || !user.name) {
+        throw new Error('User must have an id and a name');
+    }
+    user.createdAt = new Date();
+    users.push(user);
+    return user;
+}
+
 function getUsers() {
-    // BUG: Returns the internal array directly — callers can mutate it
-    return users;
+    return [...users];
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    // BUG: Missing null check — returns undefined silently instead of throwing or returning null
+    if (!user) {
+        throw new Error(`User with id ${id} not found`);
+    }
     return user;
 }
 
@@ -18,13 +28,12 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    // BUG: Allows overwriting 'id' and 'createdAt' fields via spread — no field protection
-    users[index] = { ...users[index], ...updates };
+    const { id: userId, createdAt, ...allowedUpdates } = updates;
+    users[index] = { ...users[index], ...allowedUpdates };
 
     return users[index];
 }
 
-// BUG: deleteUser does not confirm deletion — returns nothing (should return deleted user or success flag)
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
@@ -32,12 +41,12 @@ function deleteUser(id) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    users.splice(index, 1);
+    const deletedUser = users.splice(index, 1)[0];
+    return deletedUser;
 }
 
 function getUsersByRole(role) {
-    // BUG: Case-sensitive role comparison — 'Admin' won't match 'admin'
-    return users.filter(u => u.role === role);
+    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
@@ -45,9 +54,9 @@ function searchUsers(query) {
         return [];
     }
 
-    // BUG: Only searches by name, ignores email — misleading function name implies broader search
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase())
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())
     );
 }
 
