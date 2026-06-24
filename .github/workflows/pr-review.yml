@@ -10,9 +10,6 @@ permissions:
 
 jobs:
   ai-review:
-    if: |
-      github.event.pull_request.head.commit.author.name != 'github-actions[bot]' &&
-      !contains(github.event.pull_request.head.commit.message, '🤖 Auto-fix')
     runs-on: ubuntu-latest
 
     steps:
@@ -156,10 +153,16 @@ jobs:
             console.log(`Inline: ${posted}/${comments.length} posted, ${failed.length} in summary`);
 
       # Fail the check so branch protection blocks the merge
+      # Skip blocking if this was an auto-fix commit — let the user decide next step
       - name: Block PR if bugs found
         run: |
           VERDICT=$(cat review_verdict.txt 2>/dev/null || echo "UNKNOWN")
+          COMMIT_MSG="${{ github.event.pull_request.head.commit.message }}"
           echo "Review verdict: $VERDICT"
+          if echo "$COMMIT_MSG" | grep -q "🤖 Auto-fix"; then
+            echo "ℹ️ Auto-fix commit — review posted but merge not blocked."
+            exit 0
+          fi
           if [ "$VERDICT" = "REJECTED" ]; then
             echo "❌ PR blocked — bugs were found. See inline review comments for details."
             exit 1

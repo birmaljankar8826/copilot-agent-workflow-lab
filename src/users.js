@@ -4,7 +4,11 @@ function createUser(user) {
     if (!user || !user.name || !user.role) {
         throw new Error('User must have a name and role');
     }
-    const newUser = { ...user, id: Date.now(), createdAt: new Date() };
+    const newUser = {
+        ...user,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString()
+    };
     users.push(newUser);
     return newUser;
 }
@@ -28,7 +32,7 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const { ...allowedUpdates } = updates;
+    const { id: userId, createdAt, ...allowedUpdates } = updates;
     users[index] = { ...users[index], ...allowedUpdates };
 
     return users[index];
@@ -41,8 +45,7 @@ function deleteUser(id) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const deletedUser = users[index];
-    users.splice(index, 1);
+    const deletedUser = users.splice(index, 1)[0];
     return deletedUser;
 }
 
