@@ -1,0 +1,91 @@
+name: AI Test Fix Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch to fix tests on
+        required: true
+      pr_number:
+        description: PR number for comments
+        required: true
+      attempt:
+        description: Attempt number
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  fix-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Jest to Capture Errors
+        run: |
+          npm test -- 2>&1 | tee jest_output.txt || true
+
+      - name: Fix Failing Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/test-fix-agent.js
+
+      - name: Commit Fixed Tests
+        run: |
+          git config user.name "AI Test Fix Agent"
+          git config user.email "actions@github.com"
+          git add tests/
+          if git diff --cached --quiet; then
+            echo "No test changes to commit"
+          else
+            git commit -m "fix: test cases auto-fixed (attempt ${{ inputs.attempt }})"
+            git push origin ${{ inputs.base_branch }}
+          fi
+
+      - name: Post Fix Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const fixed = fs.existsSync('fix_results.txt')
+              ? fs.readFileSync('fix_results.txt', 'utf8')
+              : 'No files fixed.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number('${{ inputs.pr_number }}'),
+              body: `## 🔧 AI Test Fix Agent — Attempt ${{ inputs.attempt }}\n\nFixed the following test files:\n${fixed.split('\n').map(f => \`- \${f}\`).join('\n')}\n\nRe-running tests...`
+            });
+
+      - name: Trigger Test Runner
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-runner.yml',
+              ref: '${{ inputs.base_branch }}',
+              inputs: {
+                base_branch: '${{ inputs.base_branch }}',
+                pr_number: '${{ inputs.pr_number }}',
+                attempt: '${{ inputs.attempt }}'
+              }
+            });
