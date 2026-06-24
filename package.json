@@ -26,6 +26,8 @@
     "openai": "^6.44.0"
   },
   "jest": {
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }
