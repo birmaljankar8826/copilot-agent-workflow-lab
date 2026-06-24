@@ -65,13 +65,14 @@ jobs:
           script: |
             const fs = require('fs');
             const fixed = fs.existsSync('fix_results.txt')
-              ? fs.readFileSync('fix_results.txt', 'utf8')
-              : 'No files fixed.';
+              ? fs.readFileSync('fix_results.txt', 'utf8').trim()
+              : '';
+            const fileList = fixed ? fixed.split('\n').map(f => '- ' + f).join('\n') : 'No files fixed.';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: Number('${{ inputs.pr_number }}'),
-              body: `## 🔧 AI Test Fix Agent — Attempt ${{ inputs.attempt }}\n\nFixed the following test files:\n${fixed.split('\n').map(f => \`- \${f}\`).join('\n')}\n\nRe-running tests...`
+              body: '## 🔧 AI Test Fix Agent — Attempt ${{ inputs.attempt }}\n\nFixed the following test files:\n' + fileList + '\n\nRe-running tests...'
             });
 
       - name: Trigger Test Runner
