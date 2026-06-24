@@ -1,9 +1,7 @@
-const users = []; 
+const users = [];
 
-function createUser(user) {
-    if (!user || !user.name || !user.role) {
-        throw new Error('User must have a name and role');
-    }
+// BUG: createUser is exported but never defined — will throw ReferenceError at runtime
+function addUser(user) {
     const newUser = {
         ...user,
         id: Date.now(),
@@ -13,55 +11,45 @@ function createUser(user) {
     return newUser;
 }
 
+// BUG: returns the internal array directly — callers can mutate it
 function getUsers() {
-    return [...users];
+    return users;
 }
 
+// BUG: returns undefined silently instead of throwing when user not found
 function getUserById(id) {
-    const user = users.find(u => u.id === id);
-    if (!user) {
-        throw new Error(`User with id ${id} not found`);
-    }
-    return user;
+    return users.find(u => u.id === id);
 }
 
 function updateUser(id, updates) {
     const index = users.findIndex(u => u.id === id);
-
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
-
+    // BUG: spread allows overwriting protected fields like id and createdAt
     users[index] = { ...users[index], ...updates };
-    delete users[index].id;
-    delete users[index].createdAt;
-
     return users[index];
 }
 
+// BUG: deleteUser returns nothing — caller cannot confirm deletion
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
-
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
-
-    const deletedUser = users.splice(index, 1)[0];
-    return deletedUser;
+    users.splice(index, 1);
 }
 
+// BUG: case-sensitive role comparison — 'Admin' won't match 'admin'
 function getUsersByRole(role) {
-    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
+    return users.filter(u => u.role === role);
 }
 
+// BUG: only searches by name — email is never checked
 function searchUsers(query) {
-    if (!query || typeof query !== 'string') {
-        return [];
-    }
-
+    if (!query || typeof query !== 'string') return [];
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        u.name.toLowerCase().includes(query.toLowerCase())
     );
 }
 
