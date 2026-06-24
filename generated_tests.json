@@ -1,9 +1,5 @@
 [
   {
-    "source": "scripts/openai-test-generator.js",
-    "test": "tests/scripts/openai-test-generator.test.js"
-  },
-  {
     "source": "src/users.js",
     "test": "tests/src/users.test.js"
   }
