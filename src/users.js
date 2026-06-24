@@ -1,7 +1,14 @@
 const users = []; 
 
 function createUser(user) {
-    const newUser = { ...user, createdAt: new Date() };
+    if (!user || !user.name || !user.role) {
+        throw new Error('User must have a name and role');
+    }
+    const newUser = {
+        ...user,
+        id: Date.now(),
+        createdAt: new Date(),
+    };
     users.push(newUser);
     return newUser;
 }
@@ -25,8 +32,9 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const { id: userId, createdAt, ...rest } = users[index];
-    users[index] = { ...rest, ...updates };
+    users[index] = { ...users[index], ...updates };
+    delete users[index].id;
+    delete users[index].createdAt;
 
     return users[index];
 }
