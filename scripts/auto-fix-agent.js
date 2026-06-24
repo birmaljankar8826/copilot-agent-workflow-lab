@@ -11,7 +11,7 @@ async function fixFile(filePath, fileContent, issues) {
     .join("\n");
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     messages: [
       {
         role: "user",
@@ -28,9 +28,13 @@ ${fileContent}
 
 INSTRUCTIONS:
 - Fix every issue listed above
-- Do NOT change any code unrelated to the listed issues
-- Do NOT add comments explaining your fixes
-- Return ONLY the complete fixed file content — no markdown, no code fences, no explanation
+- Do NOT change any code that is unrelated to the listed issues
+- Do NOT introduce new variables unless they are immediately used
+- Do NOT leave any declared variable unused — every variable you declare must be referenced
+- Do NOT add new imports or requires unless absolutely necessary
+- Do NOT add explanatory comments
+- Do NOT wrap the output in markdown code fences
+- Return ONLY the complete fixed file as plain text
         `,
       },
     ],
