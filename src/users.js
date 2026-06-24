@@ -28,7 +28,7 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const { id: userId, createdAt, ...allowedUpdates } = updates;
+    const { ...allowedUpdates } = updates;
     users[index] = { ...users[index], ...allowedUpdates };
 
     return users[index];
