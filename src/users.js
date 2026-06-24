@@ -1,14 +1,7 @@
 const users = []; 
 
 function createUser(user) {
-    if (!user || !user.name || !user.role) {
-        throw new Error('User must have a name and role');
-    }
-    const newUser = {
-        ...user,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString()
-    };
+    const newUser = { ...user, createdAt: new Date() };
     users.push(newUser);
     return newUser;
 }
@@ -32,8 +25,8 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const { id: userId, createdAt, ...allowedUpdates } = updates;
-    users[index] = { ...users[index], ...allowedUpdates };
+    const { id: userId, createdAt, ...rest } = users[index];
+    users[index] = { ...rest, ...updates };
 
     return users[index];
 }
