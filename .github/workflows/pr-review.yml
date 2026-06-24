@@ -71,7 +71,6 @@ jobs:
         uses: actions/github-script@v7
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          COMMIT_AUTHOR: ${{ github.event.pull_request.head.commit.author.name }}
         with:
           script: |
             const fs = require('fs');
@@ -87,7 +86,15 @@ jobs:
             const summary  = reviewData.summary  || '';
             const comments = reviewData.comments || [];
 
-            const commitAuthor = process.env.COMMIT_AUTHOR || '';
+            // github.event.pull_request.head.commit does NOT exist in the PR event payload.
+            // Fetch the actual commit author via the GitHub API instead.
+            const headSha = context.payload.pull_request.head.sha;
+            const commitInfo = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              ref:   headSha
+            });
+            const commitAuthor = commitInfo.data.commit.author.name || '';
             const isBot = commitAuthor.includes('github-actions') || commitAuthor === 'AI Test Generator';
 
             console.log(`Verdict: ${verdict}, Bot commit: ${isBot}, Author: ${commitAuthor}`);
@@ -189,10 +196,10 @@ jobs:
       # Fail the check so branch protection blocks the merge
       # Skip blocking if this was an auto-fix or bot commit — let the user decide next step
       - name: Block PR if bugs found
-        env:
-          COMMIT_AUTHOR: ${{ github.event.pull_request.head.commit.author.name }}
         run: |
           VERDICT=$(cat review_verdict.txt 2>/dev/null || echo "UNKNOWN")
+          # Use git log to get the actual commit author — the event payload does not include this field
+          COMMIT_AUTHOR=$(git log -1 --format='%an' HEAD)
           echo "Review verdict: $VERDICT"
           echo "Commit author: $COMMIT_AUTHOR"
           if [[ "$COMMIT_AUTHOR" == *"github-actions"* ]] || [[ "$COMMIT_AUTHOR" == "AI Test Generator" ]]; then
