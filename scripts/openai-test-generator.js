@@ -7,15 +7,20 @@ const client = new OpenAI({
 });
 
 function getTestFilePath(sourceFile) {
-  const dir = path.dirname(sourceFile);
   const ext = path.extname(sourceFile);
   const name = path.basename(sourceFile, ext);
+  const dir = path.dirname(sourceFile);
 
-  return `${dir}/${name}.test${ext}`;
+  return path.join("tests", dir, `${name}.test${ext}`);
 }
 
-async function generateTestForFile(filePath) {
+async function generateTestForFile(filePath, existingTestCode = null) {
   const sourceCode = fs.readFileSync(filePath, "utf8");
+
+  const existingTestSection = existingTestCode
+    ? `Existing test file (preserve all existing tests, only add tests for new/changed code):
+${existingTestCode}`
+    : `No existing tests — generate tests for all exported functions.`;
 
   const response = await client.chat.completions.create({
     model: "gpt-4o",
@@ -39,12 +44,16 @@ Requirements:
 - Mock APIs
 - Mock databases
 - Use Jest best practices
+- Do NOT duplicate existing test cases
+- Return the complete updated test file
+- Add a single-line comment above EVERY it() block describing the scenario being tested (e.g. // Scenario: returns 404 when user not found)
 
-Source file:
-${filePath}
+Source file: ${filePath}
 
 Source code:
 ${sourceCode}
+
+${existingTestSection}
 
 Return ONLY valid JSON:
 
@@ -71,7 +80,8 @@ async function run() {
       .map(f => f.trim())
       .filter(Boolean)
       .filter(f => f.endsWith(".js"))
-      .filter(f => !f.includes(".test."));
+      .filter(f => !f.includes(".test."))
+      .filter(f => !f.startsWith("tests/"));
 
     const generated = [];
 
@@ -83,16 +93,20 @@ async function run() {
 
       const testFile = getTestFilePath(file);
 
-      if (fs.existsSync(testFile)) {
-        console.log(`Skipping existing test: ${testFile}`);
-        continue;
+      const existingTestCode = fs.existsSync(testFile)
+        ? fs.readFileSync(testFile, "utf8")
+        : null;
+
+      if (existingTestCode) {
+        console.log(`Updating tests for ${file} (existing tests preserved)`);
+      } else {
+        console.log(`Generating tests for ${file}`);
       }
 
-      console.log(`Generating tests for ${file}`);
-
       const testCode =
-        await generateTestForFile(file);
+        await generateTestForFile(file, existingTestCode);
 
+      fs.mkdirSync(path.dirname(testFile), { recursive: true });
       fs.writeFileSync(testFile, testCode);
 
       generated.push({

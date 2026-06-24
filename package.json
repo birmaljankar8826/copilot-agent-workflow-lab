@@ -24,5 +24,8 @@
   },
   "dependencies": {
     "openai": "^6.44.0"
+  },
+  "jest": {
+    "testMatch": ["**/tests/**/*.test.js"]
   }
 }
