@@ -81,9 +81,19 @@ jobs:
       - name: Commit resolved files
         id: commit
         run: |
-          # Check if resolver produced any results
+          HAS_CONFLICTS="${{ steps.merge.outputs.has_conflicts }}"
+
+          if [ "$HAS_CONFLICTS" = "false" ]; then
+            # Clean merge — merge commit already created, just push
+            git push origin ${{ steps.pr.outputs.head_ref }}
+            echo "resolved=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Has conflicts — check if resolver ran and produced results
           if [ ! -f resolved_files.txt ] || [ ! -s resolved_files.txt ]; then
             echo "resolved=false" >> $GITHUB_OUTPUT
+            git merge --abort 2>/dev/null || true
             exit 0
           fi
 
@@ -95,7 +105,7 @@ jobs:
             fi
           done < resolved_files.txt
 
-          # Verify no unmerged files remain
+          # Verify no unmerged files remain before committing
           STILL_UNMERGED=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
           if [ -n "$STILL_UNMERGED" ]; then
             echo "❌ Still unmerged after resolution: $STILL_UNMERGED"
