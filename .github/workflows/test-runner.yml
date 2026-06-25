@@ -1,4 +1,4 @@
-name: AI Test Runner
+name: "Agent 4: Test Runner — Runs Jest tests and triggers fix agent on failure"
 
 on:
   workflow_dispatch:

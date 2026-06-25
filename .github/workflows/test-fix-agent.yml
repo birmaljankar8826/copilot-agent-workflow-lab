@@ -1,4 +1,4 @@
-name: AI Test Fix Agent
+name: "Agent 5: Test Fix Agent — Auto-fixes failing tests and retries up to 3 times"
 
 on:
   workflow_dispatch:

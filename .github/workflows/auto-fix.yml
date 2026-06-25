@@ -1,4 +1,4 @@
-name: AI Auto-Fix Agent
+name: "Agent 2: Auto Code Fix — Fixes bugs and resolves conflicts on /fix comment"
 
 on:
   issue_comment:

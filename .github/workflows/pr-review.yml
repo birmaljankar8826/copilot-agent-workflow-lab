@@ -1,4 +1,4 @@
-name: AI PR Review Agent (Bulletproof)
+name: "Agent 1: PR Code Review — Detects bugs and blocks merge until fixed"
 
 on:
   pull_request:
