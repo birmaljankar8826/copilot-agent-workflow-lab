@@ -1,8 +1,11 @@
 const users = [];
 
 function createUser(user) {
-    if (typeof user !== 'object' || !user) {
+    if (!user || typeof user !== 'object') {
         throw new Error('Invalid user object');
+    }
+    if (!user.name || !user.email || !user.role) {
+        throw new Error('User object must contain name, email, and role');
     }
     const newUser = {
         ...user,
@@ -14,14 +17,17 @@ function createUser(user) {
 }
 
 function getUsers() {
-    return users;
+    return [...users];
 }
 
 function getUserById(id) {
-    return users.find(u => u.id === id);
+    return users.find(u => u.id === id) || null;
 }
 
 function updateUser(id, updates) {
+    if (!updates || typeof updates !== 'object') {
+        throw new Error('Invalid updates object');
+    }
     const index = users.findIndex(u => u.id === id);
     if (index === -1) {
         throw new Error('User not found');
@@ -38,8 +44,8 @@ function deleteUser(id) {
     if (index === -1) {
         throw new Error('User not found');
     }
-    users.splice(index, 1);
-    return true;
+    const deletedUser = users.splice(index, 1)[0];
+    return deletedUser;
 }
 
 function getUsersByRole(role) {
@@ -49,7 +55,8 @@ function getUsersByRole(role) {
 function searchUsers(query) {
     if (!query || typeof query !== 'string') return [];
     return users.filter(u =>
-        u.name && u.name.toLowerCase().includes(query.toLowerCase())
+        (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
