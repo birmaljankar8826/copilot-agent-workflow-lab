@@ -86,6 +86,7 @@ jobs:
         run: node scripts/auto-fix-agent.js
 
       - name: Commit fixes directly to PR branch
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -97,10 +98,46 @@ jobs:
           done < files.txt
           if git diff --staged --quiet; then
             echo "NO_CHANGES=true" >> $GITHUB_ENV
+            echo "has_conflicts=false" >> $GITHUB_OUTPUT
           else
             git commit -m "🤖 Auto-fix: resolve AI review findings"
-            git push origin ${{ steps.pr.outputs.head_ref }}
+            # Check for conflicts with base before pushing
+            git fetch origin ${{ steps.pr.outputs.base_ref }}
+            if git merge origin/${{ steps.pr.outputs.base_ref }}; then
+              # Merged cleanly — push
+              git push origin ${{ steps.pr.outputs.head_ref }}
+              echo "has_conflicts=false" >> $GITHUB_OUTPUT
+            else
+              # Conflicts detected — resolve automatically
+              echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            fi
           fi
+
+      - name: Auto-resolve conflicts after fix
+        if: steps.commit.outputs.has_conflicts == 'true'
+        env:
+          OPENAI_API_KEY:   ${{ secrets.OPENAI_API_KEY }}
+          RESOLVE_STRATEGY: merge
+        run: |
+          node scripts/conflict-resolver.js
+
+          # Stage all resolved files
+          if [ -f resolved_files.txt ] && [ -s resolved_files.txt ]; then
+            while read file; do
+              [ -f "$file" ] && git add "$file"
+            done < resolved_files.txt
+          fi
+
+          # Verify no unmerged files remain
+          STILL_UNMERGED=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+          if [ -n "$STILL_UNMERGED" ]; then
+            echo "❌ Could not auto-resolve: $STILL_UNMERGED"
+            git merge --abort
+            exit 1
+          fi
+
+          git commit -m "🤖 Auto-fix: resolve AI review findings + merge conflicts"
+          git push origin ${{ steps.pr.outputs.head_ref }}
 
       - name: Post summary comment on PR
         uses: actions/github-script@v7
