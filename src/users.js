@@ -1,8 +1,17 @@
 const users = [];
 
 function createUser(user) {
+    if (!user || typeof user !== 'object') {
+        throw new Error('Invalid user object');
+    }
+    const { name, email, role } = user;
+    if (!name || !email || !role) {
+        throw new Error('User must have name, email, and role');
+    }
     const newUser = {
-        ...user,
+        name,
+        email,
+        role,
         id: Date.now(),
         createdAt: new Date(),
     };
@@ -27,6 +36,9 @@ function updateUser(id, updates) {
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
+    if (!updates || typeof updates !== 'object') {
+        throw new Error('Invalid updates object');
+    }
     const safeUpdates = Object.fromEntries(
         Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
     );
@@ -44,14 +56,14 @@ function deleteUser(id) {
 }
 
 function getUsersByRole(role) {
-    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
+    return users.filter(u => u.role && u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
     if (!query || typeof query !== 'string') return [];
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
