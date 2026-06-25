@@ -31,11 +31,9 @@ STRATEGY: SMART MERGE (AI DECIDES)
 
 function findConflictedFiles() {
   try {
-    const result = execSync(
-      'grep -rl "<<<<<<< " . --include="*.js" --include="*.ts" --include="*.json" --include="*.md" --exclude-dir=node_modules --exclude-dir=.git 2>/dev/null || true',
-      { encoding: 'utf8' }
-    ).trim();
-    return result ? result.split('\n').filter(Boolean).map(f => f.replace(/^\.\//, '')) : [];
+    // Use git's own unmerged file tracking — more reliable than grep
+    const result = execSync('git diff --name-only --diff-filter=U', { encoding: 'utf8' }).trim();
+    return result ? result.split('\n').filter(Boolean) : [];
   } catch (e) {
     return [];
   }
