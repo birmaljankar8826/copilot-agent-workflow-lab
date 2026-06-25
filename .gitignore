@@ -11,6 +11,8 @@ review_verdict.txt
 fix_summary.txt
 jest_output.txt
 fix_results.txt
+resolve_summary.txt
+resolved_files.txt
 
 # Test coverage
 coverage/

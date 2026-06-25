@@ -1,0 +1,94 @@
+name: AI Conflict Resolver Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  resolve-conflicts:
+    if: |
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/resolve')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('base_ref', pr.data.base.ref);
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref:         ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+          token:       ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install openai
+
+      - name: Merge base branch to surface conflicts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ steps.pr.outputs.base_ref }}
+          git merge origin/${{ steps.pr.outputs.base_ref }} || true
+
+      - name: Run Conflict Resolver
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/conflict-resolver.js
+
+      - name: Commit resolved files
+        id: commit
+        run: |
+          if [ ! -f resolved_files.txt ] || [ ! -s resolved_files.txt ]; then
+            echo "resolved=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          while read file; do
+            [ -f "$file" ] && git add "$file"
+          done < resolved_files.txt
+          if git diff --cached --quiet; then
+            echo "resolved=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "resolve: AI resolved merge conflicts"
+            git push origin ${{ steps.pr.outputs.head_ref }}
+            echo "resolved=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resolved = '${{ steps.commit.outputs.resolved }}' === 'true';
+            const summary  = fs.existsSync('resolve_summary.txt')
+              ? fs.readFileSync('resolve_summary.txt', 'utf8')
+              : '';
+            const body = resolved
+              ? '## 🔀 AI Conflict Resolver\n\n' + summary + '\n\n✅ Conflicts resolved and committed. PR Review will run automatically.'
+              : '## 🔀 AI Conflict Resolver\n\n✅ No conflicts found — branch is already clean.';
+            await github.rest.issues.createComment({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
