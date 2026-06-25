@@ -16,7 +16,7 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const { id: _, createdAt: __, ...safeUpdates } = updates;
+    const { id: unusedId, createdAt: unusedCreatedAt, ...safeUpdates } = updates;
     users[index] = { ...users[index], ...safeUpdates };
 
     return users[index];
@@ -49,7 +49,7 @@ function searchUsers(query) {
 }
 
 function createUser(user) {
-    if (!user || typeof user !== 'object') {
+    if (!user || typeof user !== 'object' || !user.name || !user.email || !user.role) {
         throw new Error('Invalid user object');
     }
     const newUser = { ...user, id: generateUniqueId(), createdAt: new Date() };
