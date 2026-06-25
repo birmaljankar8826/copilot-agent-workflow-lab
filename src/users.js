@@ -19,8 +19,9 @@ function createUser(user) {
     return newUser;
 }
 
-function getUsers() {
-    return [...users];
+function getUsers(limit, offset = 0) {
+    const paginated = users.slice(offset, offset + (limit || users.length));
+    return [...paginated];
 }
 
 function getUserById(id) {
