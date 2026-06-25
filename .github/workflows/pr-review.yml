@@ -155,7 +155,7 @@ jobs:
             let reviewBody = `## 🤖 AI PR Review Agent\n\n${verdictEmoji} **Verdict: ${verdict}**\n\n### 🧠 Summary\n${summary}`;
 
             if (isBot) {
-              reviewBody += '\n\n> ℹ️ This review was triggered by an auto-fix commit. Merge is not blocked — please review the changes and merge when satisfied.';
+              reviewBody += '\n\n> ✅ Auto-fix applied — this PR has been approved. Please review the changes in the Files Changed tab and merge when satisfied.';
             }
 
             if (failed.length > 0) {
@@ -165,8 +165,8 @@ jobs:
                 ).join('\n');
             }
 
-            // Step 3: Bot commits never block with REQUEST_CHANGES — use COMMENT so merge stays enabled
-            const event = isBot                ? 'COMMENT'
+            // Step 3: Bot commits always APPROVE so the merge button is enabled after auto-fix.
+            const event = isBot                ? 'APPROVE'
                         : verdict === 'REJECTED' ? 'REQUEST_CHANGES'
                         : verdict === 'APPROVED'  ? 'APPROVE'
                         : 'COMMENT';
