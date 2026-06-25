@@ -1,10 +1,8 @@
-const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../../src/users');
-
-let users = [];
+let createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers;
 
 beforeEach(() => {
-  // Clear the users array before each test
-  users = [];
+  jest.resetModules();
+  ({ createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../../src/users'));
 });
 
 describe('User Management', () => {
