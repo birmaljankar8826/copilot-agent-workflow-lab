@@ -57,6 +57,16 @@ Fix ALL issues in the test file:
 - Do NOT remove any existing test scenarios
 - Add a single-line comment above each it() block describing the scenario
 
+CRITICAL — Test Isolation:
+- If the source module holds in-memory state (arrays, objects, Maps) at module level, use jest.resetModules() in beforeEach and re-require the module — do NOT use a top-level require.
+- Pattern:
+    let fnA, fnB;
+    beforeEach(() => {
+      jest.resetModules();
+      ({ fnA, fnB } = require('./path/to/module'));
+    });
+- A local variable copy (e.g. let arr = []) does NOT reset the module's internal state.
+
 Return ONLY valid JSON:
 {
   "fixedTestCode": "complete fixed test file content"

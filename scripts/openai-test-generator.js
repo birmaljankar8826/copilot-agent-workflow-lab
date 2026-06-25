@@ -48,6 +48,19 @@ Requirements:
 - Return the complete updated test file
 - Add a single-line comment above EVERY it() block describing the scenario being tested (e.g. // Scenario: returns 404 when user not found)
 
+CRITICAL — Test Isolation:
+- If the module under test holds any in-memory state (arrays, objects, Maps) at module level, you MUST reset it between tests using jest.resetModules() and re-requiring the module in beforeEach.
+- Use this exact pattern instead of a top-level require:
+
+  let fnA, fnB; // declare all imported functions at top
+  beforeEach(() => {
+    jest.resetModules();
+    ({ fnA, fnB } = require('./path/to/module'));
+  });
+
+- NEVER reset state with a local variable copy (e.g. let arr = []) — that does not affect the module's internal state.
+- If the module has NO in-memory state (pure functions, stateless), a normal top-level require is fine.
+
 Source file: ${filePath}
 
 Source code:
