@@ -51,9 +51,22 @@ jobs:
           git fetch origin ${{ steps.pr.outputs.base_ref }}
           git merge origin/${{ steps.pr.outputs.base_ref }} || true
 
+      - name: Parse resolve strategy
+        id: strategy
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if echo "$COMMENT" | grep -qi "current"; then
+            echo "value=current" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -qi "incoming"; then
+            echo "value=incoming" >> $GITHUB_OUTPUT
+          else
+            echo "value=merge" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run Conflict Resolver
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+          RESOLVE_STRATEGY:  ${{ steps.strategy.outputs.value }}
         run: node scripts/conflict-resolver.js
 
       - name: Commit resolved files
