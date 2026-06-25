@@ -1,6 +1,9 @@
 const users = [];
 
-function addUser(user) {
+function createUser(user) {
+    if (typeof user !== 'object' || !user) {
+        throw new Error('Invalid user object');
+    }
     const newUser = {
         ...user,
         id: Date.now(),
@@ -20,17 +23,27 @@ function getUserById(id) {
 
 function updateUser(id, updates) {
     const index = users.findIndex(u => u.id === id);
-    users[index] = { ...users[index], ...updates };
+    if (index === -1) {
+        throw new Error('User not found');
+    }
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
     return users[index];
 }
 
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
+    if (index === -1) {
+        throw new Error('User not found');
+    }
     users.splice(index, 1);
+    return true;
 }
 
 function getUsersByRole(role) {
-    return users.filter(u => u.role === role);
+    return users.filter(u => u.role && u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
