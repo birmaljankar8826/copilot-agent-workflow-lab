@@ -1,7 +1,6 @@
 const users = [];
 
-// BUG: createUser is exported but never defined — ReferenceError at runtime
-function addUser(user) {
+function createUser(user) {
     const newUser = {
         ...user,
         id: Date.now(),
@@ -11,14 +10,16 @@ function addUser(user) {
     return newUser;
 }
 
-// BUG: returns the internal array directly — callers can mutate state
 function getUsers() {
-    return users;
+    return [...users];
 }
 
-// BUG: returns undefined silently when user is not found
 function getUserById(id) {
-    return users.find(u => u.id === id);
+    const user = users.find(u => u.id === id);
+    if (!user) {
+        throw new Error(`User with id ${id} not found`);
+    }
+    return user;
 }
 
 function updateUser(id, updates) {
@@ -26,30 +27,31 @@ function updateUser(id, updates) {
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
-    // BUG: spread allows callers to overwrite id and createdAt
-    users[index] = { ...users[index], ...updates };
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
     return users[index];
 }
 
-// BUG: returns nothing — caller cannot confirm deletion succeeded
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
-    users.splice(index, 1);
+    const deletedUser = users.splice(index, 1)[0];
+    return deletedUser;
 }
 
-// BUG: case-sensitive — 'Admin' will not match 'admin'
 function getUsersByRole(role) {
-    return users.filter(u => u.role === role);
+    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
-// BUG: only searches by name, ignores email field entirely
 function searchUsers(query) {
     if (!query || typeof query !== 'string') return [];
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase())
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())
     );
 }
 
