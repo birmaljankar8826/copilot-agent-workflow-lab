@@ -1,8 +1,10 @@
 const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../../src/users');
 
+let users = [];
+
 beforeEach(() => {
   // Clear the users array before each test
-  users.length = 0;
+  users = [];
 });
 
 describe('User Management', () => {
