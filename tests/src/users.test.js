@@ -1,9 +1,8 @@
-const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('./users');
-
-jest.mock('./users');
+const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../../src/users');
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  // Clear the users array before each test
+  users.length = 0;
 });
 
 describe('User Management', () => {
