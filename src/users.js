@@ -20,7 +20,8 @@ function createUser(user) {
 }
 
 function getUsers() {
-    return [...users];
+    console.log(`getUsers called — total: ${users.length}`);
+    return [...users].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 function getUserById(id) {
