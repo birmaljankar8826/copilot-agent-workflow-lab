@@ -26,9 +26,10 @@ const nodeGlobals = {
   global:       "readonly",
 };
 
+// Allow _-prefixed vars to be unused (standard convention for intentionally ignored destructured values)
+const noUnusedVarsRule = ["error", { varsIgnorePattern: "^_", argsIgnorePattern: "^_" }];
+
 module.exports = [
-  // Default: ALL JS files — basic rules, Node.js globals allowed
-  // Covers any new directory added in the future (utils/, lib/, api/, etc.)
   {
     files: ["**/*.js"],
     languageOptions: {
@@ -38,13 +39,11 @@ module.exports = [
     },
     rules: {
       "no-undef":      "error",
-      "no-unused-vars":"warn",
+      "no-unused-vars": ["warn", { varsIgnorePattern: "^_", argsIgnorePattern: "^_" }],
       "no-unreachable":"error",
       "no-undef-init": "error"
     }
   },
-  // Override for src/ — stricter, no Node.js globals
-  // so undefined app variables like `multi`, `users` are flagged as bugs
   {
     files: ["src/**/*.js"],
     languageOptions: {
@@ -54,12 +53,11 @@ module.exports = [
     },
     rules: {
       "no-undef":      "error",
-      "no-unused-vars":"error",
+      "no-unused-vars": noUnusedVarsRule,
       "no-unreachable":"error",
       "no-undef-init": "error"
     }
   },
-  // Override for test files — add Jest globals so ESLint doesn't flag them
   {
     files: ["**/*.test.js"],
     languageOptions: {
@@ -69,7 +67,7 @@ module.exports = [
     },
     rules: {
       "no-undef":      "error",
-      "no-unused-vars":"warn",
+      "no-unused-vars": ["warn", { varsIgnorePattern: "^_", argsIgnorePattern: "^_" }],
       "no-unreachable":"error",
       "no-undef-init": "error"
     }

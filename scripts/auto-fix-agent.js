@@ -26,12 +26,18 @@ ${issueList}
 CURRENT CODE:
 ${fileContent}
 
-INSTRUCTIONS:
+STRICT INSTRUCTIONS — follow every rule below exactly:
 - Fix every issue listed above
 - Do NOT change any code that is unrelated to the listed issues
-- Do NOT introduce new variables unless they are immediately used
-- Do NOT leave any declared variable unused — every variable you declare must be referenced
-- Do NOT add new imports or requires unless absolutely necessary
+- Do NOT introduce any new variable that is not immediately used in the same block
+- When fixing "spread allows overwriting protected fields", use this exact pattern:
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
+  Do NOT use destructuring like const { id, createdAt, ...rest } = updates — those leave id and createdAt unused
+- When fixing "function exported but not defined", rename the function definition to match the exported name
+- Do NOT add any imports or requires unless absolutely necessary
 - Do NOT add explanatory comments
 - Do NOT wrap the output in markdown code fences
 - Return ONLY the complete fixed file as plain text
@@ -42,10 +48,7 @@ INSTRUCTIONS:
   });
 
   let fixed = response.choices?.[0]?.message?.content || fileContent;
-
-  // Strip markdown code fences if AI wrapped the response
   fixed = fixed.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "").trim();
-
   return fixed;
 }
 
@@ -60,7 +63,6 @@ async function run() {
       return;
     }
 
-    // Group comments by file
     const byFile = {};
     for (const c of comments) {
       if (!byFile[c.file]) byFile[c.file] = [];
