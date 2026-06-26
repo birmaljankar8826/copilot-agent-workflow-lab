@@ -1,10 +1,10 @@
-const { addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../src/products');
+const { addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../../src/products');
 
 let productSample;
 
 beforeEach(() => {
   jest.resetModules();
-  ({ addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../src/products'));
+  ({ addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../../src/products'));
   productSample = { name: 'Sample Product', price: 100, category: 'Electronics', description: 'A sample product' };
 });
 
