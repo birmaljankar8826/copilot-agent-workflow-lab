@@ -23,7 +23,19 @@ describe('User Management', () => {
 
   // Scenario: throws error when creating a user with missing fields
   it('should throw an error when creating a user with missing fields', () => {
-    expect(() => createUser({ name: 'John' })).toThrow('User must have name, email, and role');
+    expect(() => createUser({ name: 'John' })).toThrow('User object must contain name, email, and role');
+  });
+
+  // Scenario: throws error when creating a user with invalid email format
+  it('should throw an error when creating a user with invalid email format', () => {
+    const user = { name: 'John Doe', email: 'johnexample.com', role: 'admin' };
+    expect(() => createUser(user)).toThrow('Invalid email format');
+  });
+
+  // Scenario: throws error when creating a user with invalid role
+  it('should throw an error when creating a user with invalid role', () => {
+    const user = { name: 'John Doe', email: 'john@example.com', role: 'superuser' };
+    expect(() => createUser(user)).toThrow('Invalid role');
   });
 
   // Scenario: retrieves all users
@@ -40,14 +52,15 @@ describe('User Management', () => {
     expect(foundUser).toEqual(createdUser);
   });
 
-  // Scenario: throws error when retrieving a user with non-existent ID
-  it('should throw an error when retrieving a user with non-existent ID', () => {
-    expect(() => getUserById(999)).toThrow('User with id 999 not found');
+  // Scenario: returns null when retrieving a user with non-existent ID
+  it('should return null when retrieving a user with non-existent ID', () => {
+    const user = getUserById('non-existent-id');
+    expect(user).toBeNull();
   });
 
   // Scenario: updates a user successfully
   it('should update a user successfully', () => {
-    const user = { name: 'Alice', email: 'alice@example.com', role: 'editor' };
+    const user = { name: 'Alice', email: 'alice@example.com', role: 'admin' };
     const createdUser = createUser(user);
     const updates = { name: 'Alice Smith' };
     const updatedUser = updateUser(createdUser.id, updates);
@@ -56,12 +69,12 @@ describe('User Management', () => {
 
   // Scenario: throws error when updating a user with non-existent ID
   it('should throw an error when updating a user with non-existent ID', () => {
-    expect(() => updateUser(999, { name: 'New Name' })).toThrow('User with id 999 not found');
+    expect(() => updateUser('non-existent-id', { name: 'New Name' })).toThrow('User not found');
   });
 
   // Scenario: throws error when updating a user with invalid updates object
   it('should throw an error when updating a user with invalid updates object', () => {
-    const user = { name: 'Bob', email: 'bob@example.com', role: 'viewer' };
+    const user = { name: 'Bob', email: 'bob@example.com', role: 'user' };
     const createdUser = createUser(user);
     expect(() => updateUser(createdUser.id, null)).toThrow('Invalid updates object');
   });
@@ -76,7 +89,7 @@ describe('User Management', () => {
 
   // Scenario: throws error when deleting a user with non-existent ID
   it('should throw an error when deleting a user with non-existent ID', () => {
-    expect(() => deleteUser(999)).toThrow('User with id 999 not found');
+    expect(() => deleteUser('non-existent-id')).toThrow('User not found');
   });
 
   // Scenario: retrieves users by role
@@ -86,6 +99,12 @@ describe('User Management', () => {
     const admins = getUsersByRole('admin');
     expect(admins.length).toBe(1);
     expect(admins[0].role).toBe('admin');
+  });
+
+  // Scenario: returns empty array when retrieving users by non-existent role
+  it('should return empty array when retrieving users by non-existent role', () => {
+    const users = getUsersByRole('non-existent-role');
+    expect(users).toEqual([]);
   });
 
   // Scenario: searches users by query
@@ -99,6 +118,12 @@ describe('User Management', () => {
   // Scenario: returns empty array when searching with empty query
   it('should return empty array when searching with empty query', () => {
     const results = searchUsers('');
+    expect(results).toEqual([]);
+  });
+
+  // Scenario: returns empty array when searching with non-matching query
+  it('should return empty array when searching with non-matching query', () => {
+    const results = searchUsers('non-existent-query');
     expect(results).toEqual([]);
   });
 });

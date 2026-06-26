@@ -43,7 +43,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install openai eslint
+        run: npm install
 
       - name: Get PR diff
         run: |

@@ -6,6 +6,12 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function loadAgentInstructions(mdPath) {
+  const raw = fs.readFileSync(mdPath, "utf8");
+  // Strip YAML frontmatter (--- ... ---) — that section is for VS Code Copilot only
+  return raw.replace(/^---[\s\S]*?---\n/, "").trim();
+}
+
 function parseEslintFindings() {
   try {
     const raw = fs.readFileSync("eslint_output.json", "utf8");
@@ -38,6 +44,7 @@ function parseEslintFindings() {
 
 async function run() {
   try {
+    const instructions = loadAgentInstructions(".github/agents/pr-review-agent.md");
     const diff    = fs.readFileSync("diff.txt", "utf8");
     const context = fs.readFileSync("full_context.txt", "utf8");
 
@@ -51,10 +58,7 @@ async function run() {
       messages: [
         {
           role: "user",
-          content: `
-You are a senior software engineer performing a thorough code review.
-
-Review ALL code in the changed files — both new and existing lines.
+          content: `${instructions}
 
 --- GIT DIFF ---
 ${diff}
@@ -64,35 +68,6 @@ ${context}
 
 --- ESLINT FINDINGS (confirmed bugs, always include) ---
 ${eslintSummary}
-
-Look for ALL of the following across the entire file:
-- Undefined variables or wrong identifiers
-- Unused parameters
-- Division by zero
-- Missing input validation
-- Wrong return values or logic errors
-- Security vulnerabilities
-- Null/undefined access without guards
-
-RESPOND with ONLY valid JSON (no markdown):
-{
-  "summary": "Overall summary of issues found",
-  "verdict": "APPROVED" or "REJECTED",
-  "comments": [
-    {
-      "file": "src/app.js",
-      "line": 6,
-      "severity": "bug" | "security" | "performance" | "suggestion",
-      "comment": "Clear explanation of the issue"
-    }
-  ]
-}
-
-RULES:
-- Use the line number from the FULL FILE CONTENT (absolute line number in the file)
-- Report issues on ALL lines, not just added lines
-- verdict = "REJECTED" if any bug or security issue exists
-- verdict = "APPROVED" only if zero bugs and zero security issues
           `,
         },
       ],
