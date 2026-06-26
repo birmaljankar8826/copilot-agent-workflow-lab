@@ -44,7 +44,7 @@ function parseEslintFindings() {
 
 async function run() {
   try {
-    const instructions = loadAgentInstructions(".github/prompts/pr-review-agent.md");
+    const instructions = loadAgentInstructions(".github/agents/pr-review-agent.md");
     const diff    = fs.readFileSync("diff.txt", "utf8");
     const context = fs.readFileSync("full_context.txt", "utf8");
 
