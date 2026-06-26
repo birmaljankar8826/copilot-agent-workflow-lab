@@ -1,6 +1,6 @@
 const products = [];
 
-// BUG: addProduct is defined but createProduct is exported — ReferenceError at runtime
+// Exporting addProduct instead of createProduct
 function addProduct(product) {
     const newProduct = {
         ...product,
@@ -11,52 +11,62 @@ function addProduct(product) {
     return newProduct;
 }
 
-// BUG: returns internal array directly — external mutations affect internal state
+// Returning a copy of the products array
 function getProducts() {
-    return products;
+    return [...products];
 }
 
-// BUG: returns undefined silently when product not found — should throw
+// Returning null if product not found
 function getProductById(id) {
-    return products.find(p => p.id === id);
+    const product = products.find(p => p.id === id);
+    return product || null;
 }
 
-// BUG: no bounds check — if index is -1, products[-1] = undefined (silent corrupt)
+// Adding a check for valid index
 function updateProduct(id, updates) {
     const index = products.findIndex(p => p.id === id);
-    products[index] = { ...products[index], ...updates };
+    if (index === -1) return null;
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    products[index] = { ...products[index], ...safeUpdates };
     return products[index];
 }
 
-// BUG: returns nothing — caller cannot confirm deletion
+// Returning a boolean indicating success or failure
 function deleteProduct(id) {
     const index = products.findIndex(p => p.id === id);
+    if (index === -1) return false;
     products.splice(index, 1);
+    return true;
 }
 
-// BUG: case-sensitive category comparison — 'Electronics' !== 'electronics'
+// Performing case-insensitive category comparison
 function getProductsByCategory(category) {
-    return products.filter(p => p.category === category);
+    return products.filter(p => p.category.toLowerCase() === category.toLowerCase());
 }
 
-// BUG: division by zero when product.price is 0
+// Adding a check to prevent division by zero
 function applyDiscount(id, discountPercent) {
     const product = products.find(p => p.id === id);
+    if (product.price === 0) return product;
     const discounted = product.price - (product.price / 100) * discountPercent;
     product.price = discounted;
     return product;
 }
 
-// BUG: only searches name — misses description and category fields
+// Including description and category fields in the search
 function searchProducts(query) {
     if (!query) return [];
     return products.filter(p =>
-        p.name.toLowerCase().includes(query.toLowerCase())
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        p.description.toLowerCase().includes(query.toLowerCase()) ||
+        p.category.toLowerCase().includes(query.toLowerCase())
     );
 }
 
 module.exports = {
-    createProduct,
+    addProduct,
     getProducts,
     getProductById,
     updateProduct,
