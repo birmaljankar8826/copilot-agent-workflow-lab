@@ -3,15 +3,21 @@ const { v4: uuidv4 } = require('uuid');
 const users = []; 
 
 function getUsers() {
-    return [...users];
+    return JSON.parse(JSON.stringify(users));
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
+    if (!user) {
+        console.log(`User with id ${id} not found`);
+    }
     return user || null;
 }
 
 function updateUser(id, updates) {
+    if (typeof updates !== 'object' || updates === null) {
+        throw new Error('Updates must be a valid object');
+    }
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
@@ -30,7 +36,8 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        throw new Error(`User with id ${id} not found`);
+        console.log(`User with id ${id} not found`);
+        return null;
     }
 
     const deletedUser = users.splice(index, 1)[0];
@@ -50,12 +57,15 @@ function searchUsers(query) {
     }
 
     return users.filter(u =>
-        typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase()) ||
-        typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase())
+        (typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
 function createUser(user) {
+    if (typeof user !== 'object' || user === null) {
+        throw new Error('User must be a valid object');
+    }
     if (!user.name || !user.email || !user.role) {
         throw new Error('User must have a name, email, and role');
     }
