@@ -5,18 +5,24 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function loadAgentInstructions(mdPath) {
+  const raw = fs.readFileSync(mdPath, "utf8");
+  return raw.replace(/^---[\s\S]*?---\n/, "").trim();
+}
+
 async function fixFile(filePath, fileContent, issues) {
   const issueList = issues
     .map((i, idx) => `${idx + 1}. Line ${i.line} [${i.severity.toUpperCase()}]: ${i.comment}`)
     .join("\n");
+
+  const instructions = loadAgentInstructions(".github/agents/auto-fix-agent.md");
 
   const response = await client.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "user",
-        content: `
-You are a senior software engineer. Fix ALL the issues listed below in the given code.
+        content: `${instructions}
 
 FILE: ${filePath}
 
@@ -24,24 +30,7 @@ ISSUES TO FIX:
 ${issueList}
 
 CURRENT CODE:
-${fileContent}
-
-STRICT INSTRUCTIONS — follow every rule below exactly:
-- Fix every issue listed above
-- Do NOT change any code that is unrelated to the listed issues
-- Do NOT introduce any new variable that is not immediately used in the same block
-- When fixing "spread allows overwriting protected fields", use this exact pattern:
-    const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-    );
-    users[index] = { ...users[index], ...safeUpdates };
-  Do NOT use destructuring like const { id, createdAt, ...rest } = updates — those leave id and createdAt unused
-- When fixing "function exported but not defined", rename the function definition to match the exported name
-- Do NOT add any imports or requires unless absolutely necessary
-- Do NOT add explanatory comments
-- Do NOT wrap the output in markdown code fences
-- Return ONLY the complete fixed file as plain text
-        `,
+${fileContent}`,
       },
     ],
     temperature: 0.1,

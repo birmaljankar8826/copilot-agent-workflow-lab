@@ -4,6 +4,11 @@ const OpenAI = require('openai');
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+function loadAgentInstructions(mdPath) {
+  const raw = fs.readFileSync(mdPath, 'utf8');
+  return raw.replace(/^---[\s\S]*?---\n/, '').trim();
+}
+
 function extractErrorsForFile(jestOutput, testFile) {
   const lines = jestOutput.split('\n');
   const errors = [];
@@ -29,14 +34,15 @@ async function fixTestFile(testFilePath, sourceFilePath, jestError) {
     ? fs.readFileSync(sourceFilePath, 'utf8')
     : '';
 
+  const instructions = loadAgentInstructions('.github/agents/test-fix-agent.md');
+
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
     temperature: 0.1,
     response_format: { type: 'json_object' },
     messages: [{
       role: 'user',
-      content: `
-You are a senior QA engineer. Fix the failing Jest test file based on the error output.
+      content: `${instructions}
 
 Source file: ${sourceFilePath}
 Source code:
@@ -47,31 +53,7 @@ Current test code:
 ${testCode}
 
 Jest error output:
-${jestError}
-
-Fix ALL issues in the test file:
-- Fix wrong imports or require paths
-- Fix incorrect mocks or missing mocks
-- Fix wrong assertions or expected values
-- Fix syntax errors
-- Do NOT remove any existing test scenarios
-- Add a single-line comment above each it() block describing the scenario
-
-CRITICAL — Test Isolation:
-- If the source module holds in-memory state (arrays, objects, Maps) at module level, use jest.resetModules() in beforeEach and re-require the module — do NOT use a top-level require.
-- Pattern:
-    let fnA, fnB;
-    beforeEach(() => {
-      jest.resetModules();
-      ({ fnA, fnB } = require('./path/to/module'));
-    });
-- A local variable copy (e.g. let arr = []) does NOT reset the module's internal state.
-
-Return ONLY valid JSON:
-{
-  "fixedTestCode": "complete fixed test file content"
-}
-      `
+${jestError}`
     }]
   });
 

@@ -6,6 +6,11 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function loadAgentInstructions(mdPath) {
+  const raw = fs.readFileSync(mdPath, "utf8");
+  return raw.replace(/^---[\s\S]*?---\n/, "").trim();
+}
+
 function getTestFilePath(sourceFile) {
   const ext = path.extname(sourceFile);
   const name = path.basename(sourceFile, ext);
@@ -22,6 +27,8 @@ async function generateTestForFile(filePath, existingTestCode = null) {
 ${existingTestCode}`
     : `No existing tests — generate tests for all exported functions.`;
 
+  const instructions = loadAgentInstructions(".github/agents/test-generator-agent.md");
+
   const response = await client.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.1,
@@ -29,51 +36,14 @@ ${existingTestCode}`
     messages: [
       {
         role: "user",
-        content: `
-You are a senior QA automation engineer.
-
-Generate production-ready Jest unit tests.
-
-Requirements:
-- Cover all exported functions
-- Cover happy paths
-- Cover edge cases
-- Cover invalid inputs
-- Cover exceptions
-- Mock external dependencies
-- Mock APIs
-- Mock databases
-- Use Jest best practices
-- Do NOT duplicate existing test cases
-- Return the complete updated test file
-- Add a single-line comment above EVERY it() block describing the scenario being tested (e.g. // Scenario: returns 404 when user not found)
-
-CRITICAL — Test Isolation:
-- If the module under test holds any in-memory state (arrays, objects, Maps) at module level, you MUST reset it between tests using jest.resetModules() and re-requiring the module in beforeEach.
-- Use this exact pattern instead of a top-level require:
-
-  let fnA, fnB; // declare all imported functions at top
-  beforeEach(() => {
-    jest.resetModules();
-    ({ fnA, fnB } = require('./path/to/module'));
-  });
-
-- NEVER reset state with a local variable copy (e.g. let arr = []) — that does not affect the module's internal state.
-- If the module has NO in-memory state (pure functions, stateless), a normal top-level require is fine.
+        content: `${instructions}
 
 Source file: ${filePath}
 
 Source code:
 ${sourceCode}
 
-${existingTestSection}
-
-Return ONLY valid JSON:
-
-{
-  "testCode": "complete Jest test file"
-}
-        `,
+${existingTestSection}`,
       },
     ],
   });
