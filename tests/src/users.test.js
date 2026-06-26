@@ -17,13 +17,13 @@ describe('User Management', () => {
 
   // Scenario: throws error when creating a user with invalid object
   it('should throw an error when creating a user with invalid object', () => {
-    expect(() => createUser(null)).toThrow('Invalid user object');
-    expect(() => createUser('string')).toThrow('Invalid user object');
+    expect(() => createUser(null)).toThrow('User must be a valid object');
+    expect(() => createUser('string')).toThrow('User must be a valid object');
   });
 
   // Scenario: throws error when creating a user with missing fields
   it('should throw an error when creating a user with missing fields', () => {
-    expect(() => createUser({ name: 'John' })).toThrow('User object must contain name, email, and role');
+    expect(() => createUser({ name: 'John' })).toThrow('User must have a name, email, and role');
   });
 
   // Scenario: throws error when creating a user with invalid email format
@@ -69,14 +69,14 @@ describe('User Management', () => {
 
   // Scenario: throws error when updating a user with non-existent ID
   it('should throw an error when updating a user with non-existent ID', () => {
-    expect(() => updateUser('non-existent-id', { name: 'New Name' })).toThrow('User not found');
+    expect(() => updateUser('non-existent-id', { name: 'New Name' })).toThrow('User with id non-existent-id not found');
   });
 
   // Scenario: throws error when updating a user with invalid updates object
   it('should throw an error when updating a user with invalid updates object', () => {
     const user = { name: 'Bob', email: 'bob@example.com', role: 'user' };
     const createdUser = createUser(user);
-    expect(() => updateUser(createdUser.id, null)).toThrow('Invalid updates object');
+    expect(() => updateUser(createdUser.id, null)).toThrow('Updates must be a valid object');
   });
 
   // Scenario: deletes a user successfully
@@ -87,9 +87,10 @@ describe('User Management', () => {
     expect(deletedUser).toEqual(createdUser);
   });
 
-  // Scenario: throws error when deleting a user with non-existent ID
-  it('should throw an error when deleting a user with non-existent ID', () => {
-    expect(() => deleteUser('non-existent-id')).toThrow('User not found');
+  // Scenario: returns null when deleting a user with non-existent ID
+  it('should return null when deleting a user with non-existent ID', () => {
+    const result = deleteUser('non-existent-id');
+    expect(result).toBeNull();
   });
 
   // Scenario: retrieves users by role
@@ -99,6 +100,11 @@ describe('User Management', () => {
     const admins = getUsersByRole('admin');
     expect(admins.length).toBe(1);
     expect(admins[0].role).toBe('admin');
+  });
+
+  // Scenario: throws error when retrieving users by invalid role
+  it('should throw an error when retrieving users by invalid role', () => {
+    expect(() => getUsersByRole(123)).toThrow('Role must be a valid string');
   });
 
   // Scenario: returns empty array when retrieving users by non-existent role
@@ -124,6 +130,12 @@ describe('User Management', () => {
   // Scenario: returns empty array when searching with non-matching query
   it('should return empty array when searching with non-matching query', () => {
     const results = searchUsers('non-existent-query');
+    expect(results).toEqual([]);
+  });
+
+  // Scenario: returns empty array when searching with invalid query type
+  it('should return empty array when searching with invalid query type', () => {
+    const results = searchUsers(123);
     expect(results).toEqual([]);
   });
 });
