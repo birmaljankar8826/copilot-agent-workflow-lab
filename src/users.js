@@ -1,90 +1,62 @@
-const { v4: uuidv4 } = require('uuid');
+const users = []; 
 
-function userModule() {
-    const users = [];
-
-    function createUser(user) {
-        if (!user || typeof user !== 'object') {
-            throw new Error('Invalid user object');
-        }
-        if (!user.name || !user.email || !user.role) {
-            throw new Error('User object must contain name, email, and role');
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(user.email)) {
-            throw new Error('Invalid email format');
-        }
-        const allowedRoles = ['admin', 'user', 'guest'];
-        if (!allowedRoles.includes(user.role)) {
-            throw new Error('Invalid role');
-        }
-        const newUser = {
-            ...user,
-            id: uuidv4(),
-            createdAt: new Date(),
-        };
-        users.push(newUser);
-        return newUser;
-    }
-
-    function getUsers() {
-        return JSON.parse(JSON.stringify(users));
-    }
-
-    function getUserById(id) {
-        const user = users.find(u => u.id === id) || null;
-        if (!user) {
-            console.log(`User with id ${id} not found`);
-        }
-        return user;
-    }
-
-    function updateUser(id, updates) {
-        if (!updates || typeof updates !== 'object') {
-            throw new Error('Invalid updates object');
-        }
-        const index = users.findIndex(u => u.id === id);
-        if (index === -1) {
-            throw new Error('User not found');
-        }
-        const safeUpdates = Object.fromEntries(
-            Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-        );
-        users[index] = { ...users[index], ...safeUpdates };
-        return users[index];
-    }
-
-    function deleteUser(id) {
-        const index = users.findIndex(u => u.id === id);
-        if (index === -1) {
-            throw new Error('User not found');
-        }
-        const deletedUser = users.splice(index, 1)[0];
-        return deletedUser;
-    }
-
-    function getUsersByRole(role) {
-        if (!role) return [];
-        return users.filter(u => u.role && u.role.toLowerCase() === role.toLowerCase());
-    }
-
-    function searchUsers(query) {
-        if (!query || typeof query !== 'string') return [];
-        return users.filter(u =>
-            (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
-            (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
-        );
-    }
-
-    return {
-        createUser,
-        getUsers,
-        getUserById,
-        updateUser,
-        deleteUser,
-        getUsersByRole,
-        searchUsers,
-    };
+function getUsers() {
+    // BUG: Returns the internal array directly — callers can mutate it
+    return users;
 }
 
-module.exports = userModule();
+function getUserById(id) {
+    const user = users.find(u => u.id === id);
+    // BUG: Missing null check — returns undefined silently instead of throwing or returning null
+    return user;
+}
+
+function updateUser(id, updates) {
+    const index = users.findIndex(u => u.id === id);
+
+    if (index === -1) {
+        throw new Error(`User with id ${id} not found`);
+    }
+
+    // BUG: Allows overwriting 'id' and 'createdAt' fields via spread — no field protection
+    users[index] = { ...users[index], ...updates };
+
+    return users[index];
+}
+
+// BUG: deleteUser does not confirm deletion — returns nothing (should return deleted user or success flag)
+function deleteUser(id) {
+    const index = users.findIndex(u => u.id === id);
+
+    if (index === -1) {
+        throw new Error(`User with id ${id} not found`);
+    }
+
+    users.splice(index, 1);
+}
+
+function getUsersByRole(role) {
+    // BUG: Case-sensitive role comparison — 'Admin' won't match 'admin'
+    return users.filter(u => u.role === role);
+}
+
+function searchUsers(query) {
+    if (!query || typeof query !== 'string') {
+        return [];
+    }
+
+    // BUG: Only searches by name, ignores email — misleading function name implies broader search
+    return users.filter(u =>
+        u.name.toLowerCase().includes(query.toLowerCase())
+    );
+}
+
+module.exports = {
+    createUser,
+    getUsers,
+    getUserById,
+    updateUser,
+    deleteUser,
+    getUsersByRole,
+    searchUsers,
+};
