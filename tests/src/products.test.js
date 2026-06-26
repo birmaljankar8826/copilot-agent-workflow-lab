@@ -1,4 +1,4 @@
-const { addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../../src/products');
+let addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts;
 
 let productSample;
 
