@@ -1,3 +1,5 @@
+const { v4: uuidv4 } = require('uuid');
+
 const users = []; 
 
 function getUsers() {
@@ -36,6 +38,9 @@ function deleteUser(id) {
 }
 
 function getUsersByRole(role) {
+    if (!role || typeof role !== 'string') {
+        throw new Error('Role must be a valid string');
+    }
     return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
@@ -45,12 +50,23 @@ function searchUsers(query) {
     }
 
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase()) ||
+        typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase())
     );
 }
 
 function createUser(user) {
+    if (!user.name || !user.email || !user.role) {
+        throw new Error('User must have a name, email, and role');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
+        throw new Error('Invalid email format');
+    }
+    if (!['admin', 'user', 'guest'].includes(user.role.toLowerCase())) {
+        throw new Error('Invalid role');
+    }
+    user.id = uuidv4();
+    user.createdAt = new Date().toISOString();
     users.push(user);
     return user;
 }
