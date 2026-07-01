@@ -38,10 +38,10 @@ describe('User Management', () => {
 
   // Scenario: retrieves a user by ID
   it('should retrieve a user by ID', () => {
-    const user = { name: 'Jane Doe', email: 'jane@example.com', role: 'user' };
-    const createdUser = createUser(user);
-    const foundUser = getUserById(createdUser.id);
-    expect(foundUser).toEqual(createdUser);
+    const user = { id: '1', name: 'Jane Doe', email: 'jane@example.com', role: 'user' };
+    createUser(user);
+    const foundUser = getUserById('1');
+    expect(foundUser).toEqual(user);
   });
 
   // Scenario: returns null when retrieving a user with non-existent ID
@@ -52,10 +52,10 @@ describe('User Management', () => {
 
   // Scenario: updates a user successfully
   it('should update a user successfully', () => {
-    const user = { name: 'Alice', email: 'alice@example.com', role: 'admin' };
-    const createdUser = createUser(user);
+    const user = { id: '2', name: 'Alice', email: 'alice@example.com', role: 'admin' };
+    createUser(user);
     const updates = { name: 'Alice Smith' };
-    const updatedUser = updateUser(createdUser.id, updates);
+    const updatedUser = updateUser('2', updates);
     expect(updatedUser.name).toBe('Alice Smith');
   });
 
@@ -66,21 +66,21 @@ describe('User Management', () => {
 
   // Scenario: deletes a user successfully
   it('should delete a user successfully', () => {
-    const user = { name: 'Charlie', email: 'charlie@example.com', role: 'admin' };
-    const createdUser = createUser(user);
-    const deletedUser = deleteUser(createdUser.id);
-    expect(deletedUser).toEqual(createdUser);
+    const user = { id: '3', name: 'Charlie', email: 'charlie@example.com', role: 'admin' };
+    createUser(user);
+    const deletedUser = deleteUser('3');
+    expect(deletedUser).toEqual(user);
   });
 
-  // Scenario: returns null when deleting a user with non-existent ID
-  it('should return null when deleting a user with non-existent ID', () => {
+  // Scenario: throws error when deleting a user with non-existent ID
+  it('should throw an error when deleting a user with non-existent ID', () => {
     expect(() => deleteUser('non-existent-id')).toThrow('User with id non-existent-id not found');
   });
 
   // Scenario: retrieves users by role
   it('should retrieve users by role', () => {
-    createUser({ name: 'Dave', email: 'dave@example.com', role: 'admin' });
-    createUser({ name: 'Eve', email: 'eve@example.com', role: 'user' });
+    createUser({ id: '4', name: 'Dave', email: 'dave@example.com', role: 'admin' });
+    createUser({ id: '5', name: 'Eve', email: 'eve@example.com', role: 'user' });
     const admins = getUsersByRole('admin');
     expect(admins.length).toBe(1);
     expect(admins[0].role).toBe('admin');
@@ -99,7 +99,7 @@ describe('User Management', () => {
 
   // Scenario: searches users by query
   it('should search users by query', () => {
-    createUser({ name: 'Frank', email: 'frank@example.com', role: 'user' });
+    createUser({ id: '6', name: 'Frank', email: 'frank@example.com', role: 'user' });
     const results = searchUsers('frank');
     expect(results.length).toBe(1);
     expect(results[0].name).toBe('Frank');

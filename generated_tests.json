@@ -1,5 +1,9 @@
 [
   {
+    "source": "src/orders.js",
+    "test": "tests/src/orders.test.js"
+  },
+  {
     "source": "src/users.js",
     "test": "tests/src/users.test.js"
   }
