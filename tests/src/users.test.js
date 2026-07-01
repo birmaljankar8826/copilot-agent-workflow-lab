@@ -8,7 +8,7 @@ beforeEach(() => {
 describe('User Management', () => {
   // Scenario: successfully creates a user
   it('should create a user successfully', () => {
-    const user = { name: 'John Doe', email: 'john@example.com', role: 'admin' };
+    const user = { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin' };
     const createdUser = createUser(user);
     expect(createdUser).toMatchObject(user);
   });
@@ -21,13 +21,23 @@ describe('User Management', () => {
 
   // Scenario: throws error when creating a user with missing fields
   it('should throw an error when creating a user with missing fields', () => {
-    expect(() => createUser({ name: 'John' })).toThrow('Invalid user fields');
+    expect(() => createUser({ name: 'John' })).toThrow('Invalid or missing id');
+    expect(() => createUser({ id: '1' })).toThrow('Invalid or missing name');
+    expect(() => createUser({ id: '1', name: 'John' })).toThrow('Invalid or missing email');
+    expect(() => createUser({ id: '1', name: 'John', email: 'john@example.com' })).toThrow('Invalid or missing role');
   });
 
   // Scenario: throws error when creating a user with invalid email format
   it('should throw an error when creating a user with invalid email format', () => {
-    const user = { name: 'John Doe', email: 'johnexample.com', role: 'admin' };
-    expect(() => createUser(user)).toThrow('Invalid email format');
+    const user = { id: '1', name: 'John Doe', email: 'johnexample.com', role: 'admin' };
+    expect(() => createUser(user)).toThrow('Invalid or missing email');
+  });
+
+  // Scenario: throws error when creating a user with duplicate ID
+  it('should throw an error when creating a user with duplicate ID', () => {
+    const user = { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin' };
+    createUser(user);
+    expect(() => createUser(user)).toThrow('User with this id already exists');
   });
 
   // Scenario: retrieves all users
@@ -48,6 +58,12 @@ describe('User Management', () => {
   it('should return null when retrieving a user with non-existent ID', () => {
     const user = getUserById('non-existent-id');
     expect(user).toBeNull();
+  });
+
+  // Scenario: throws error when retrieving a user with invalid ID
+  it('should throw an error when retrieving a user with invalid ID', () => {
+    expect(() => getUserById(null)).toThrow('Invalid id parameter');
+    expect(() => getUserById('')).toThrow('Invalid id parameter');
   });
 
   // Scenario: updates a user successfully
@@ -77,6 +93,12 @@ describe('User Management', () => {
     expect(() => deleteUser('non-existent-id')).toThrow('User with id non-existent-id not found');
   });
 
+  // Scenario: throws error when deleting a user with invalid ID
+  it('should throw an error when deleting a user with invalid ID', () => {
+    expect(() => deleteUser(null)).toThrow('Invalid id parameter');
+    expect(() => deleteUser('')).toThrow('Invalid id parameter');
+  });
+
   // Scenario: retrieves users by role
   it('should retrieve users by role', () => {
     createUser({ id: '4', name: 'Dave', email: 'dave@example.com', role: 'admin' });
@@ -88,7 +110,8 @@ describe('User Management', () => {
 
   // Scenario: throws error when retrieving users by invalid role
   it('should throw an error when retrieving users by invalid role', () => {
-    expect(() => getUsersByRole(123)).toThrow('Invalid role');
+    expect(() => getUsersByRole(123)).toThrow('Invalid role parameter');
+    expect(() => getUsersByRole('')).toThrow('Invalid role parameter');
   });
 
   // Scenario: returns empty array when retrieving users by non-existent role
