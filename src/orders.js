@@ -1,16 +1,20 @@
 const orders = [];
 
 function getOrders() {
-    return orders;
+    return [...orders];
 }
 
 function getOrderById(id) {
-    return orders.find(o => o.id === id);
+    const order = orders.find(o => o.id === id);
+    return order || null;
 }
 
 function createOrder(order) {
     if (!order.items || !Array.isArray(order.items) || !order.items.every(item => item && typeof item.price === 'number')) {
         throw new Error('Invalid order: items must be an array of objects with a price property');
+    }
+    if (orders.some(o => o.id === order.id)) {
+        throw new Error('Order with the same ID already exists');
     }
     const total = order.items.reduce((sum, item) => sum + item.price, 0);
     orders.push({ ...order, total });
@@ -35,7 +39,7 @@ function deleteOrder(id) {
         return null;
     }
     const deletedOrder = orders.splice(index, 1)[0];
-    return deletedOrder;
+    return deletedOrder || null;
 }
 
 function getAverageOrderTotal() {
@@ -56,6 +60,9 @@ function applyDiscount(orderId, discountExpression) {
     const discount = parseFloat(discountExpression);
     if (isNaN(discount) || discount < 0) {
         throw new Error('Invalid discount expression');
+    }
+    if (discount > orders[index].total) {
+        throw new Error('Discount cannot exceed the order total');
     }
     orders[index].total = orders[index].total - discount;
     return orders[index];

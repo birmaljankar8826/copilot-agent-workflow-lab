@@ -1,19 +1,19 @@
 const users = [];
 
 function getUsers() {
-    return users;
+    return [...users];
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    return user;
+    return user || null;
 }
 
 function updateUser(id, updates) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        throw new Error(`User with id ${id} not found`);
+        return null;
     }
 
     const safeUpdates = Object.fromEntries(
@@ -27,7 +27,7 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        return false;
+        return null;
     }
 
     users.splice(index, 1);
@@ -36,6 +36,10 @@ function deleteUser(id) {
 
 function getUsersByRole(role) {
     if (!role || typeof role !== 'string') {
+        return [];
+    }
+    const validRoles = [...new Set(users.map(u => u.role))];
+    if (!validRoles.includes(role)) {
         return [];
     }
     return users.filter(u => u.role === role);
@@ -58,6 +62,10 @@ function createUser(user) {
     const { id, name, email, role } = user;
     if (!id || typeof id !== 'string' || !name || typeof name !== 'string' || !email || typeof email !== 'string' || !role || typeof role !== 'string') {
         throw new Error('Invalid user fields');
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        throw new Error('Invalid email format');
     }
     if (users.some(u => u.id === id)) {
         throw new Error(`User with id ${id} already exists`);

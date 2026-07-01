@@ -11,7 +11,7 @@ function addProduct(product) {
 }
 
 function getProducts() {
-    return products;
+    return [...products];
 }
 
 function getProductById(id) {
@@ -31,8 +31,10 @@ function updateProduct(id, updates) {
 
 function deleteProduct(id) {
     const index = products.findIndex(p => p.id === id);
-    if (index === -1) return false;
+    if (index === -1) return null;
+    const deletedProduct = products[index];
     products.splice(index, 1);
+    return deletedProduct;
 }
 
 function getProductsByCategory(category) {
@@ -46,6 +48,9 @@ function applyDiscount(id, discountPercent) {
         throw new Error('Invalid discount percent');
     }
     const discounted = product.price - (product.price / 100) * discountPercent;
+    if (discounted < 0) {
+        throw new Error('Discounted price cannot be negative');
+    }
     product.price = discounted;
     return product;
 }
