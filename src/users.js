@@ -5,6 +5,10 @@ function getUsers() {
 }
 
 function getUserById(id) {
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid id parameter');
+    }
+
     const user = users.find(u => u.id === id);
     return user || null;
 }
@@ -25,48 +29,78 @@ function updateUser(id, updates) {
 }
 
 function deleteUser(id) {
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid id parameter');
+    }
+
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const deletedUser = users.splice(index, 1)[0];
+    const deletedUser = users[index];
+    users.splice(index, 1);
     return deletedUser || null;
 }
 
 function getUsersByRole(role) {
-    if (!role || typeof role !== 'string') {
-        throw new Error('Invalid role');
+    if (!role || typeof role !== 'string' || role.trim() === '') {
+        throw new Error('Invalid role parameter');
     }
+
     return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
-    if (!query || typeof query !== 'string') {
+    if (!query || typeof query !== 'string' || query.trim() === '') {
         return [];
     }
 
-    return users.filter(u =>
-        typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase()) ||
-        typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase())
-    );
+    const lowerCaseQuery = query.toLowerCase();
+    return users.filter(u => {
+        const nameMatch = typeof u.name === 'string' && u.name.toLowerCase().includes(lowerCaseQuery);
+        const emailMatch = typeof u.email === 'string' && u.email.toLowerCase().includes(lowerCaseQuery);
+        return nameMatch || emailMatch;
+    });
 }
 
 function createUser(user) {
     if (!user || typeof user !== 'object') {
         throw new Error('Invalid user object');
     }
-    const { name, email, role } = user;
-    if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !role || typeof role !== 'string') {
-        throw new Error('Invalid user fields');
+
+    const { id, name, email, role } = user;
+
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid or missing id');
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        throw new Error('Invalid email format');
+
+    if (users.some(u => u.id === id)) {
+        throw new Error('User with this id already exists');
     }
-    users.push(user);
-    return user;
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        throw new Error('Invalid or missing name');
+    }
+
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error('Invalid or missing email');
+    }
+
+    if (!role || typeof role !== 'string' || role.trim() === '') {
+        throw new Error('Invalid or missing role');
+    }
+
+    const sanitizedUser = {
+        id,
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+    };
+
+    users.push(sanitizedUser);
+    return sanitizedUser;
 }
 
 module.exports = {
