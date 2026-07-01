@@ -3,7 +3,8 @@ const path = require("path");
 const OpenAI = require("openai");
 
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://models.inference.ai.azure.com",
+  apiKey: process.env.GITHUB_TOKEN,
 });
 
 function loadAgentInstructions(mdPath) {

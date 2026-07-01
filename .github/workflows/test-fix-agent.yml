@@ -44,7 +44,7 @@ jobs:
 
       - name: Fix Failing Tests
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/test-fix-agent.js
 
       - name: Commit Fixed Tests
