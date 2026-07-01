@@ -78,12 +78,12 @@ jobs:
 
       - name: Run AI Review to get findings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/openai-pr-agent.js
 
       - name: Run Auto-Fix Agent
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/auto-fix-agent.js
 
       - name: Commit fixes directly to PR branch
@@ -117,7 +117,7 @@ jobs:
       - name: Auto-resolve conflicts after fix
         if: steps.commit.outputs.has_conflicts == 'true'
         env:
-          GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN:     ${{ secrets.GH_MODELS_TOKEN }}
           RESOLVE_STRATEGY: merge
         run: |
           node scripts/conflict-resolver.js
