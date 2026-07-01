@@ -2,7 +2,10 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const OpenAI = require('openai');
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const client = new OpenAI({
+  baseURL: "https://models.inference.ai.azure.com",
+  apiKey: process.env.GITHUB_TOKEN,
+});
 
 // Strategy passed from workflow: 'current' | 'incoming' | 'merge'
 const STRATEGY = process.env.RESOLVE_STRATEGY || 'merge';

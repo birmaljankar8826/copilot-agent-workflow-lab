@@ -63,7 +63,7 @@ jobs:
       # Writes review_result.json and review_verdict.txt
       - name: Run AI Agent
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/openai-pr-agent.js
 
       # Post review summary + individual inline comments
