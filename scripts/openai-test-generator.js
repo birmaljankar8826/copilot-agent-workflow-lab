@@ -33,6 +33,7 @@ ${existingTestCode}`
   const response = await client.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.1,
+    max_tokens: 4096,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -49,9 +50,12 @@ ${existingTestSection}`,
     ],
   });
 
-  const result = JSON.parse(
-    response.choices[0].message.content
-  );
+  let result;
+  try {
+    result = JSON.parse(response.choices[0].message.content);
+  } catch (e) {
+    throw new Error(`Failed to parse AI response for ${filePath}: ${e.message}`);
+  }
 
   return result.testCode;
 }
