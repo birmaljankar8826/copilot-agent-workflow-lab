@@ -1,10 +1,10 @@
-const { getOrders, getOrderById, createOrder, updateOrder, deleteOrder, getAverageOrderTotal, getOrdersByStatus, applyDiscount } = require('../src/orders');
+const path = require('path');
 
-let orders;
+let getOrders, getOrderById, createOrder, updateOrder, deleteOrder, getAverageOrderTotal, getOrdersByStatus, applyDiscount;
 
 beforeEach(() => {
   jest.resetModules();
-  ({ getOrders, getOrderById, createOrder, updateOrder, deleteOrder, getAverageOrderTotal, getOrdersByStatus, applyDiscount } = require('../src/orders'));
+  ({ getOrders, getOrderById, createOrder, updateOrder, deleteOrder, getAverageOrderTotal, getOrdersByStatus, applyDiscount } = require(path.resolve(__dirname, '../../src/orders')));
 });
 
 describe('Orders Module', () => {
