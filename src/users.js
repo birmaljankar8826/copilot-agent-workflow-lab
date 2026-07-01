@@ -16,7 +16,10 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    users[index] = { ...users[index], ...updates };
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
     return users[index];
 }
 
@@ -24,15 +27,16 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        throw new Error(`User with id ${id} not found`);
+        return false;
     }
 
     users.splice(index, 1);
+    return true;
 }
 
 function getUsersByRole(role) {
     if (!role || typeof role !== 'string') {
-        throw new Error('Invalid role');
+        return [];
     }
     return users.filter(u => u.role === role);
 }
@@ -51,9 +55,12 @@ function createUser(user) {
     if (!user || typeof user !== 'object') {
         throw new Error('Invalid user object');
     }
-    const { name, email, role } = user;
-    if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !role || typeof role !== 'string') {
+    const { id, name, email, role } = user;
+    if (!id || typeof id !== 'string' || !name || typeof name !== 'string' || !email || typeof email !== 'string' || !role || typeof role !== 'string') {
         throw new Error('Invalid user fields');
+    }
+    if (users.some(u => u.id === id)) {
+        throw new Error(`User with id ${id} already exists`);
     }
     users.push(user);
     return user;

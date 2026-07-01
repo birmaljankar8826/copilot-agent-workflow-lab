@@ -16,13 +16,16 @@ function getProducts() {
 
 function getProductById(id) {
     const product = products.find(p => p.id === id);
-    return product;
+    return product || null;
 }
 
 function updateProduct(id, updates) {
     const index = products.findIndex(p => p.id === id);
     if (index === -1) return null;
-    products[index] = { ...products[index], ...updates };
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    products[index] = { ...products[index], ...safeUpdates };
     return products[index];
 }
 
@@ -38,6 +41,10 @@ function getProductsByCategory(category) {
 
 function applyDiscount(id, discountPercent) {
     const product = products.find(p => p.id === id);
+    if (!product) return null;
+    if (typeof discountPercent !== 'number' || discountPercent < 0 || discountPercent > 100) {
+        throw new Error('Invalid discount percent');
+    }
     const discounted = product.price - (product.price / 100) * discountPercent;
     product.price = discounted;
     return product;
