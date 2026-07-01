@@ -73,6 +73,7 @@ ${eslintSummary}
         },
       ],
       temperature: 0.1,
+      max_tokens: 4096,
       response_format: { type: "json_object" },
     });
 
@@ -113,6 +114,8 @@ ${eslintSummary}
     console.log("Comments:", JSON.stringify(reviewData.comments, null, 2));
   } catch (err) {
     console.error("AI Agent Error:", err.message);
+    console.error("Error status:", err.status || "n/a");
+    console.error("Error type:", err.constructor?.name || "unknown");
     const eslintFindings = parseEslintFindings();
     const errorResult = {
       summary: "⚠️ AI review failed. Showing ESLint findings only.",
