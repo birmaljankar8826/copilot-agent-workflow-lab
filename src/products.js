@@ -1,4 +1,4 @@
-const products = [];
+﻿const products = [];
 
 function addProduct(product) {
     const newProduct = {
@@ -22,22 +22,19 @@ function getProductById(id) {
 function updateProduct(id, updates) {
     const index = products.findIndex(p => p.id === id);
     if (index === -1) return null;
-    const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-    );
-    products[index] = { ...products[index], ...safeUpdates };
+    products[index] = { ...products[index], ...updates };
     return products[index];
 }
 
 function deleteProduct(id) {
     const index = products.findIndex(p => p.id === id);
     if (index === -1) return null;
-    const deletedProduct = products[index];
     products.splice(index, 1);
-    return deletedProduct;
+    return true;
 }
 
 function getProductsByCategory(category) {
+    if (!category) return [];
     return products.filter(p => p.category === category);
 }
 
@@ -47,11 +44,7 @@ function applyDiscount(id, discountPercent) {
     if (typeof discountPercent !== 'number' || discountPercent < 0 || discountPercent > 100) {
         throw new Error('Invalid discount percent');
     }
-    const discounted = product.price - (product.price / 100) * discountPercent;
-    if (discounted < 0) {
-        throw new Error('Discounted price cannot be negative');
-    }
-    product.price = discounted;
+    product.price = product.price - discountPercent;
     return product;
 }
 

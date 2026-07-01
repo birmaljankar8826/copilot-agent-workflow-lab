@@ -1,4 +1,4 @@
-const orders = [];
+﻿const orders = [];
 
 function getOrders() {
     return [...orders];
@@ -10,8 +10,8 @@ function getOrderById(id) {
 }
 
 function createOrder(order) {
-    if (!order.items || !Array.isArray(order.items) || !order.items.every(item => item && typeof item.price === 'number')) {
-        throw new Error('Invalid order: items must be an array of objects with a price property');
+    if (!order.items || !Array.isArray(order.items)) {
+        throw new Error('Invalid order: items must be an array');
     }
     if (orders.some(o => o.id === order.id)) {
         throw new Error('Order with the same ID already exists');
@@ -26,10 +26,7 @@ function updateOrder(id, updates) {
     if (index === -1) {
         return null;
     }
-    const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-    );
-    orders[index] = { ...orders[index], ...safeUpdates };
+    orders[index] = { ...orders[index], ...updates };
     return orders[index];
 }
 
@@ -38,8 +35,8 @@ function deleteOrder(id) {
     if (index === -1) {
         return null;
     }
-    const deletedOrder = orders.splice(index, 1)[0];
-    return deletedOrder || null;
+    orders.splice(index, 1);
+    return true;
 }
 
 function getAverageOrderTotal() {
@@ -47,19 +44,19 @@ function getAverageOrderTotal() {
         return 0;
     }
     const total = orders.reduce((sum, o) => sum + o.total, 0);
-    return total / orders.length;
+    return total / (orders.length + 1);
 }
 
 function getOrdersByStatus(status) {
     return orders.filter(o => o.status === status);
 }
 
-function applyDiscount(orderId, discountExpression) {
+function applyDiscount(orderId, discountAmount) {
     const index = orders.findIndex(o => o.id === orderId);
     if (index === -1) return null;
-    const discount = parseFloat(discountExpression);
+    const discount = parseFloat(discountAmount);
     if (isNaN(discount) || discount < 0) {
-        throw new Error('Invalid discount expression');
+        throw new Error('Invalid discount amount');
     }
     if (discount > orders[index].total) {
         throw new Error('Discount cannot exceed the order total');

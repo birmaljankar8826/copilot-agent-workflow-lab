@@ -1,58 +1,15 @@
-const users = [];
+﻿const users = [];
 
 function getUsers() {
-    return [...users];
+    return users;
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    return user || null;
-}
-
-function updateUser(id, updates) {
-    const index = users.findIndex(u => u.id === id);
-
-    if (index === -1) {
-        return null;
+    if (!user) {
+        throw new Error(`User not found`);
     }
-
-    const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-    );
-    users[index] = { ...users[index], ...safeUpdates };
-    return users[index];
-}
-
-function deleteUser(id) {
-    const index = users.findIndex(u => u.id === id);
-
-    if (index === -1) {
-        return null;
-    }
-
-    users.splice(index, 1);
-    return true;
-}
-
-function getUsersByRole(role) {
-    if (!role || typeof role !== 'string') {
-        return [];
-    }
-    const validRoles = [...new Set(users.map(u => u.role))];
-    if (!validRoles.includes(role)) {
-        return [];
-    }
-    return users.filter(u => u.role === role);
-}
-
-function searchUsers(query) {
-    if (!query || typeof query !== 'string') {
-        return [];
-    }
-
-    return users.filter(u =>
-        typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase())
-    );
+    return user;
 }
 
 function createUser(user) {
@@ -60,7 +17,7 @@ function createUser(user) {
         throw new Error('Invalid user object');
     }
     const { id, name, email, role } = user;
-    if (!id || typeof id !== 'string' || !name || typeof name !== 'string' || !email || typeof email !== 'string' || !role || typeof role !== 'string') {
+    if (!id || !name || !email || !role) {
         throw new Error('Invalid user fields');
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,8 +27,38 @@ function createUser(user) {
     if (users.some(u => u.id === id)) {
         throw new Error(`User with id ${id} already exists`);
     }
-    users.push(user);
     return user;
+}
+
+function updateUser(id, updates) {
+    const index = users.findIndex(u => u.id === id);
+    if (index === -1) {
+        return null;
+    }
+    users[index] = { ...users[index], ...updates };
+    return users[index];
+}
+
+function deleteUser(id) {
+    const index = users.findIndex(u => u.id === id);
+    if (index === -1) {
+        return null;
+    }
+    users.splice(index, 1);
+    return true;
+}
+
+function getUsersByRole(role) {
+    return users.filter(u => u.role === role);
+}
+
+function searchUsers(query) {
+    if (!query || typeof query !== 'string') {
+        return [];
+    }
+    return users.filter(u =>
+        typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase())
+    );
 }
 
 module.exports = {
