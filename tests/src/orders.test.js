@@ -26,7 +26,7 @@ describe('Orders Module', () => {
     const result = createOrder(order);
     expect(result).toEqual({ ...order, total: 30 });
     expect(getOrders()).toHaveLength(1);
-    expect(getOrders()[0].total).toBe(30);
+    expect(getOrders()[0]).toEqual({ ...order, total: 30 });
   });
 
   // Scenario: createOrder throws TypeError for missing items
