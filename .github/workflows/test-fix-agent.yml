@@ -56,8 +56,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "No test changes to commit"
           else
-            git commit -m "fix: test cases auto-fixed (attempt ${{ inputs.attempt }})"
+            git stash --include-untracked
             git pull --rebase origin ${{ inputs.base_branch }}
+            git stash pop || true
+            git add tests/
+            git commit -m "fix: test cases auto-fixed (attempt ${{ inputs.attempt }})"
             git push origin ${{ inputs.base_branch }}
           fi
 
