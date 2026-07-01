@@ -1,11 +1,9 @@
-const { jest } = require('@jest/globals');
-
 describe('products module', () => {
   let addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts;
 
   beforeEach(() => {
     jest.resetModules();
-    ({ addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../src/products'));
+    ({ addProduct, getProducts, getProductById, updateProduct, deleteProduct, getProductsByCategory, applyDiscount, searchProducts } = require('../../src/products'));
   });
 
   // Scenario: adds a new product and returns it

@@ -22,7 +22,7 @@ describe('Orders Module', () => {
   it('should add a valid order', () => {
     const order = { id: '1', items: [{ price: 10 }, { price: 20 }] };
     const createdOrder = ordersModule.createOrder(order);
-    expect(createdOrder).toEqual(order);
+    expect(createdOrder).toEqual({ ...order, total: 30 });
     expect(ordersModule.getOrders()).toHaveLength(1);
   });
 
@@ -57,7 +57,7 @@ describe('Orders Module', () => {
     const order = { id: '1', items: [{ price: 10 }] };
     ordersModule.createOrder(order);
     const deletedOrder = ordersModule.deleteOrder('1');
-    expect(deletedOrder).toEqual(order);
+    expect(deletedOrder).toEqual({ ...order, total: 10 });
     expect(ordersModule.getOrders()).toHaveLength(0);
   });
 
@@ -82,7 +82,9 @@ describe('Orders Module', () => {
   it('should filter orders by status', () => {
     ordersModule.createOrder({ id: '1', items: [{ price: 10 }], status: 'shipped' });
     ordersModule.createOrder({ id: '2', items: [{ price: 20 }], status: 'pending' });
-    expect(ordersModule.getOrdersByStatus('shipped')).toHaveLength(1);
+    expect(ordersModule.getOrdersByStatus('shipped')).toEqual([
+      { id: '1', items: [{ price: 10 }], status: 'shipped', total: 10 }
+    ]);
   });
 
   // Scenario: applyDiscount applies a valid discount
