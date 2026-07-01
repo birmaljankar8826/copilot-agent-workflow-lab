@@ -22,26 +22,24 @@ function createUser(user) {
 }
 
 function getUsers() {
-    // BUG: returns internal array directly — callers can mutate it
-    return users;
+    return [...users];
 }
 
 function getUserById(id) {
-    const user = users.find(u => u.id === id);
-    // BUG: returns undefined instead of null when not found
-    return user;
+    return users.find(u => u.id === id) || null;
 }
 
 function updateUser(id, updates) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        // BUG: should throw but returns null instead
-        return null;
+        throw new Error(`User with id ${id} not found`);
     }
 
-    // BUG: allows overwriting immutable fields id and createdAt
-    users[index] = { ...users[index], ...updates };
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
     return users[index];
 }
 
@@ -49,17 +47,14 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        // BUG: should throw but returns null instead
-        return null;
+        throw new Error(`User with id ${id} not found`);
     }
 
-    // BUG: returns nothing — should return the deleted user
-    users.splice(index, 1);
+    return users.splice(index, 1)[0];
 }
 
 function getUsersByRole(role) {
-    // BUG: case-sensitive comparison — 'Admin' won't match 'admin'
-    return users.filter(u => u.role === role);
+    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
@@ -67,9 +62,9 @@ function searchUsers(query) {
         return [];
     }
 
-    // BUG: searches only by name, ignores email
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase())
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())
     );
 }
 
