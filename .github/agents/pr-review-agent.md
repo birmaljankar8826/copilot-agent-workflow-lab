@@ -1,4 +1,4 @@
----
+﻿---
 description: Reviews code changes for bugs, undefined variables, security vulnerabilities and logic errors. Run this before raising a PR to catch issues early.
 tools:
   - codebase
@@ -47,9 +47,20 @@ Look for ALL of the following across the entire file — not just the added line
 - Unused or unreachable functions
 - Division by zero
 - Missing input validation
-- Wrong return values or logic errors
+- **Wrong return values** — e.g. a function that stores `{...order, total}` internally but returns `order` without the `total` field
+- **Arithmetic/calculation bugs** — e.g. `total` computed incorrectly, off-by-one errors, wrong operator
+- **Missing fields in returned objects** — the caller expects a field that the return statement omits
+- Logic errors — conditions that are always true/false, wrong comparison operators
 - Security vulnerabilities (injection, exposed secrets, unsafe eval/exec)
 - Null/undefined access without guards
+- Functions that mutate shared state without protection
+
+### Pay special attention to
+
+- **Return value consistency**: if a function mutates an in-memory array with `{ ...item, computedField }`, the return value must ALSO include `computedField`
+- **Deletion functions**: `delete*` functions should return the deleted item, not `true` or `null`
+- **Creation functions**: `create*` functions should return the created object including all computed fields (e.g. `total`, `id`, `createdAt`)
+- **Update functions**: `update*` functions must protect immutable fields (`id`, `createdAt`) from being overwritten
 
 ---
 
@@ -85,8 +96,8 @@ Respond with a clear summary followed by a findings list.
 
 | File | Line | Severity | Issue |
 |------|------|----------|-------|
-| src/users.js | 42 | BUG | `createUser` is exported but never defined — ReferenceError at runtime |
-| src/users.js | 15 | BUG | `getUsers()` returns internal array directly — mutations leak outside |
+| src/orders.js | 21 | BUG | `createOrder` stores `{...order, total}` in the array but returns `order` without `total` — callers receive an object with no total field |
+| src/orders.js | 42 | BUG | `deleteOrder` returns `deletedOrder || null` but `deletedOrder` is always truthy after splice — returns the item correctly; no bug here |
 
 ### Summary
 ...
@@ -101,3 +112,4 @@ Respond with a clear summary followed by a findings list.
 - verdict = **REJECTED** if any bug or security issue exists
 - verdict = **APPROVED** only if zero bugs and zero security issues
 - If ESLint findings are provided, always include them — they are confirmed bugs
+- Do NOT approve code where a function returns less data than it stores — that is always a bug

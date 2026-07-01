@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const OpenAI = require('openai');
 
@@ -42,6 +42,7 @@ async function fixTestFile(testFilePath, sourceFilePath, jestError) {
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
     temperature: 0.1,
+    max_tokens: 4096,
     response_format: { type: 'json_object' },
     messages: [{
       role: 'user',
@@ -60,8 +61,13 @@ ${jestError}`
     }]
   });
 
-  const result = JSON.parse(response.choices[0].message.content);
-  return result.fixedTestCode;
+  let result;
+  try {
+    result = JSON.parse(response.choices[0].message.content);
+  } catch (e) {
+    throw new Error(`Failed to parse AI response for ${testFilePath}: ${e.message}`);
+  }
+  return result;
 }
 
 async function run() {
@@ -73,7 +79,6 @@ async function run() {
 
     const jestOutput = fs.readFileSync('jest_output.txt', 'utf8');
 
-    // Parse failing test files from Jest output (lines starting with "FAIL")
     const failingFiles = new Set();
     for (const line of jestOutput.split('\n')) {
       const match = line.match(/^FAIL\s+(.+\.test\.js)/);
@@ -88,6 +93,7 @@ async function run() {
     console.log(`Fixing ${failingFiles.size} failing file(s): ${[...failingFiles].join(', ')}`);
 
     const results = [];
+    const sourceCodeFixes = [];
 
     for (const testFile of failingFiles) {
       if (!fs.existsSync(testFile)) {
@@ -95,19 +101,80 @@ async function run() {
         continue;
       }
 
-      // Derive source file: tests/<dir>/<name>.test.js → <dir>/<name>.js
       const sourceFile = testFile.replace(/^tests\//, '').replace(/\.test\.js$/, '.js');
       const fileErrors = extractErrorsForFile(jestOutput, testFile);
 
-      console.log(`Fixing ${testFile}...`);
-      const fixedCode = await fixTestFile(testFile, sourceFile, fileErrors);
-      fs.writeFileSync(testFile, fixedCode);
-      console.log(`✅ Fixed: ${testFile}`);
-      results.push(testFile);
+      console.log(`Analyzing ${testFile}...`);
+      const result = await fixTestFile(testFile, sourceFile, fileErrors);
+
+      // Write the fixed test file
+      if (result.fixedTestCode) {
+        fs.writeFileSync(testFile, result.fixedTestCode);
+        console.log(`✅ Fixed test: ${testFile}`);
+        results.push(testFile);
+      }
+
+      // Apply source code fixes if the agent identified code bugs
+      if (result.sourceCodeFixes && result.sourceCodeFixes.length > 0) {
+        for (const fix of result.sourceCodeFixes) {
+          console.log(`⚠️  Source code fix needed: ${fix.file} — ${fix.issue}`);
+          sourceCodeFixes.push(fix);
+        }
+      }
+    }
+
+    // Apply source code fixes using auto-fix agent instructions
+    if (sourceCodeFixes.length > 0) {
+      console.log(`\nApplying ${sourceCodeFixes.length} source code fix(es)...`);
+      const { OpenAI: OAI } = require('openai');
+      const autoFixInstructions = fs.readFileSync('.github/agents/auto-fix-agent.md', 'utf8')
+        .replace(/^---[\s\S]*?---\n/, '').trim();
+
+      const bySourceFile = {};
+      for (const fix of sourceCodeFixes) {
+        if (!bySourceFile[fix.file]) bySourceFile[fix.file] = [];
+        bySourceFile[fix.file].push(fix);
+      }
+
+      for (const [filePath, fixes] of Object.entries(bySourceFile)) {
+        if (!fs.existsSync(filePath)) {
+          console.error(`Source file not found: ${filePath}`);
+          continue;
+        }
+
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const issueList = fixes
+          .map((f, idx) => `${idx + 1}. ${f.issue} — Fix: ${f.fix}`)
+          .join('\n');
+
+        const fixResponse = await client.chat.completions.create({
+          model: 'gpt-4o',
+          temperature: 0.1,
+          max_tokens: 4096,
+          messages: [{
+            role: 'user',
+            content: `${autoFixInstructions}
+
+FILE: ${filePath}
+
+ISSUES TO FIX:
+${issueList}
+
+CURRENT CODE:
+${fileContent}`
+          }]
+        });
+
+        let fixedSource = fixResponse.choices?.[0]?.message?.content || fileContent;
+        fixedSource = fixedSource.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+        fs.writeFileSync(filePath, fixedSource + '\n');
+        console.log(`✅ Fixed source: ${filePath}`);
+        results.push(filePath);
+      }
     }
 
     fs.writeFileSync('fix_results.txt', results.join('\n'));
-    console.log(`Fixed ${results.length} test file(s).`);
+    console.log(`\nFixed ${results.length} file(s) total.`);
 
   } catch (err) {
     console.error('Test Fix Agent Error:', err.message);
