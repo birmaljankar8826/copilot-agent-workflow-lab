@@ -24,7 +24,7 @@ describe('Orders Module', () => {
   it('should add a valid order and calculate total', () => {
     const order = { id: '1', userId: 'user1', items: [{ price: 10 }, { price: 20 }] };
     const result = createOrder(order);
-    expect(result).toEqual(order);
+    expect(result).toEqual({ ...order, total: 30 });
     expect(getOrders()).toHaveLength(1);
     expect(getOrders()[0].total).toBe(30);
   });
