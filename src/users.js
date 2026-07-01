@@ -33,10 +33,14 @@ function deleteUser(id) {
 
     const deletedUser = users[index];
     users.splice(index, 1);
-    return deletedUser;
+    return deletedUser || null;
 }
 
 function getUsersByRole(role) {
+    if (!role || typeof role !== 'string' || role.trim() === '') {
+        throw new Error('Invalid role parameter');
+    }
+
     return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
@@ -46,14 +50,28 @@ function searchUsers(query) {
     }
 
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        (typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
 function createUser(user) {
     if (!user || typeof user !== 'object') {
         throw new Error('Invalid user object');
+    }
+
+    const { name, email, role } = user;
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        throw new Error('Invalid or missing name');
+    }
+
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error('Invalid or missing email');
+    }
+
+    if (!role || typeof role !== 'string' || role.trim() === '') {
+        throw new Error('Invalid or missing role');
     }
 
     users.push(user);
