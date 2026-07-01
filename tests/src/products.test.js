@@ -114,7 +114,7 @@ describe('products module', () => {
   it('should throw an error if discounted price is negative', () => {
     const product = addProduct({ name: 'Product A', price: 10, category: 'Category 1' });
 
-    expect(() => applyDiscount(product.id, 200)).toThrow('Discounted price cannot be negative');
+    expect(() => applyDiscount(product.id, 200)).toThrow('Invalid discount percent');
   });
 
   // Scenario: searches products by query

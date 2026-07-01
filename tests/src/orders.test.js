@@ -23,7 +23,7 @@ describe('Orders Module', () => {
     const order = { id: '1', items: [{ price: 10 }, { price: 20 }] };
     const createdOrder = ordersModule.createOrder(order);
     expect(createdOrder).toEqual({ ...order, total: 30 });
-    expect(ordersModule.getOrders()).toHaveLength(1);
+    expect(ordersModule.getOrders()).toEqual([{ ...order, total: 30 }]);
   });
 
   // Scenario: createOrder throws error for invalid order
@@ -58,7 +58,7 @@ describe('Orders Module', () => {
     ordersModule.createOrder(order);
     const deletedOrder = ordersModule.deleteOrder('1');
     expect(deletedOrder).toEqual({ ...order, total: 10 });
-    expect(ordersModule.getOrders()).toHaveLength(0);
+    expect(ordersModule.getOrders()).toEqual([]);
   });
 
   // Scenario: deleteOrder returns null for non-existent order
