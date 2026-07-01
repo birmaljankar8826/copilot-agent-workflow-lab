@@ -1,4 +1,4 @@
-const users = []; 
+const users = [];
 
 function getUsers() {
     return JSON.parse(JSON.stringify(users));
@@ -6,9 +6,6 @@ function getUsers() {
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    if (!user) {
-        console.error(`User with id ${id} not found`);
-    }
     return user || null;
 }
 

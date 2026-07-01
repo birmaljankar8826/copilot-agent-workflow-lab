@@ -8,6 +8,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  models: read
 
 jobs:
   generate-tests:
@@ -38,7 +39,7 @@ jobs:
 
       - name: Generate Unit Tests
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/openai-test-generator.js
 
       - name: Commit Generated Tests

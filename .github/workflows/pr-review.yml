@@ -7,6 +7,7 @@ on:
 permissions:
   pull-requests: write
   contents: read
+  models: read
 
 jobs:
   ai-review:
@@ -63,7 +64,7 @@ jobs:
       # Writes review_result.json and review_verdict.txt
       - name: Run AI Agent
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/openai-pr-agent.js
 
       # Post review summary + individual inline comments
