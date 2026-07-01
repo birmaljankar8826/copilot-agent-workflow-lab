@@ -1,13 +1,13 @@
+const { v4: uuidv4 } = require('uuid');
+
 const users = []; 
 
 function getUsers() {
-    // Return a shallow copy of the users array to prevent external mutation
     return [...users];
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    // Return null if the user is not found
     return user || null;
 }
 
@@ -18,7 +18,10 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    // Protect immutable fields from being overwritten
+    if (typeof updates !== 'object' || updates === null) {
+        throw new Error('Updates must be a valid object');
+    }
+
     const safeUpdates = Object.fromEntries(
         Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
     );
@@ -31,18 +34,19 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        // Return null if the user is not found
         return null;
     }
 
-    // Remove the user and return the deleted user object
     const [deletedUser] = users.splice(index, 1);
     return deletedUser;
 }
 
 function getUsersByRole(role) {
-    // Perform a case-insensitive role comparison
-    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
+    if (!role || typeof role !== 'string' || role.trim() === '') {
+        throw new Error('Role must be a non-empty string');
+    }
+
+    return users.filter(u => u.role && u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
@@ -50,20 +54,21 @@ function searchUsers(query) {
         return [];
     }
 
-    // Extend search to include both name and email
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
-// Define the createUser function
 function createUser(user) {
-    // Add the new user to the users array
+    if (user.createdAt && isNaN(Date.parse(user.createdAt))) {
+        throw new Error('createdAt must be a valid ISO date string');
+    }
+
     const newUser = {
         ...user,
-        id: user.id || `${Date.now()}`, // Generate an ID if not provided
-        createdAt: user.createdAt || new Date().toISOString(), // Set createdAt if not provided
+        id: user.id || uuidv4(),
+        createdAt: user.createdAt || new Date().toISOString(),
     };
     users.push(newUser);
     return newUser;
