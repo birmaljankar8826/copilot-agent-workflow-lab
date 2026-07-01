@@ -45,7 +45,7 @@ jobs:
 
       - name: Fix Failing Tests
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/test-fix-agent.js
 
       - name: Commit Fixed Tests
