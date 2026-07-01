@@ -5,6 +5,10 @@ function getUsers() {
 }
 
 function getUserById(id) {
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid id parameter');
+    }
+
     const user = users.find(u => u.id === id);
     return user || null;
 }
@@ -25,6 +29,10 @@ function updateUser(id, updates) {
 }
 
 function deleteUser(id) {
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid id parameter');
+    }
+
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
@@ -45,14 +53,16 @@ function getUsersByRole(role) {
 }
 
 function searchUsers(query) {
-    if (!query || typeof query !== 'string') {
+    if (!query || typeof query !== 'string' || query.trim() === '') {
         return [];
     }
 
-    return users.filter(u =>
-        (typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase())) ||
-        (typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase()))
-    );
+    const lowerCaseQuery = query.toLowerCase();
+    return users.filter(u => {
+        const nameMatch = typeof u.name === 'string' && u.name.toLowerCase().includes(lowerCaseQuery);
+        const emailMatch = typeof u.email === 'string' && u.email.toLowerCase().includes(lowerCaseQuery);
+        return nameMatch || emailMatch;
+    });
 }
 
 function createUser(user) {
@@ -60,7 +70,15 @@ function createUser(user) {
         throw new Error('Invalid user object');
     }
 
-    const { name, email, role } = user;
+    const { id, name, email, role } = user;
+
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('Invalid or missing id');
+    }
+
+    if (users.some(u => u.id === id)) {
+        throw new Error('User with this id already exists');
+    }
 
     if (!name || typeof name !== 'string' || name.trim() === '') {
         throw new Error('Invalid or missing name');
@@ -74,8 +92,15 @@ function createUser(user) {
         throw new Error('Invalid or missing role');
     }
 
-    users.push(user);
-    return user;
+    const sanitizedUser = {
+        id,
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+    };
+
+    users.push(sanitizedUser);
+    return sanitizedUser;
 }
 
 module.exports = {
