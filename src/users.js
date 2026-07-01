@@ -1,13 +1,13 @@
+const { v4: uuidv4 } = require('uuid');
+
 const users = []; 
 
 function getUsers() {
-    // Return a shallow copy of the users array to prevent external mutation
     return [...users];
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    // Explicitly return null if user is not found
     return user || null;
 }
 
@@ -15,10 +15,9 @@ function updateUser(id, updates) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        throw new Error(`User with id ${id} not found`);
+        return null;
     }
 
-    // Filter out immutable fields before applying updates
     const safeUpdates = Object.fromEntries(
         Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
     );
@@ -31,17 +30,19 @@ function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        throw new Error(`User with id ${id} not found`);
+        return null;
     }
 
-    // Return the deleted user object
     const [deletedUser] = users.splice(index, 1);
     return deletedUser;
 }
 
 function getUsersByRole(role) {
-    // Perform case-insensitive role comparison
-    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
+    if (typeof role !== 'string') {
+        throw new Error('Role must be a string');
+    }
+
+    return users.filter(u => u.role && u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
@@ -49,22 +50,32 @@ function searchUsers(query) {
         return [];
     }
 
-    // Search by both name and email
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())
+        (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
     );
 }
 
-// Define the createUser function
 function createUser(user) {
     if (!user || typeof user !== 'object') {
         throw new Error('Invalid user object');
     }
 
+    const { name, email, role } = user;
+
+    if (typeof name !== 'string' || typeof email !== 'string' || typeof role !== 'string') {
+        throw new Error('Invalid user fields: name, email, and role must be strings');
+    }
+
+    const sanitizedUser = {
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+    };
+
     const newUser = {
-        ...user,
-        id: user.id || String(Date.now()), // Generate an ID if not provided
+        ...sanitizedUser,
+        id: user.id || uuidv4(),
         createdAt: new Date().toISOString(),
     };
 
