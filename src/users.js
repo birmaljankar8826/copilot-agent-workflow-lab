@@ -1,54 +1,43 @@
-const { v4: uuidv4 } = require('uuid');
-
 const users = []; 
 
 function getUsers() {
-    return JSON.parse(JSON.stringify(users));
+    // BUG: Returns the internal array directly — callers can mutate it
+    return users;
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    if (!user) {
-        console.log(`User with id ${id} not found`);
-    }
-    return user || null;
+    // BUG: Missing null check — returns undefined silently instead of throwing or returning null
+    return user;
 }
 
 function updateUser(id, updates) {
-    if (typeof updates !== 'object' || updates === null) {
-        throw new Error('Updates must be a valid object');
-    }
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
-    );
-    users[index] = { ...users[index], ...safeUpdates };
+    // BUG: Allows overwriting 'id' and 'createdAt' fields via spread — no field protection
+    users[index] = { ...users[index], ...updates };
 
     return users[index];
 }
 
+// BUG: deleteUser does not confirm deletion — returns nothing (should return deleted user or success flag)
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
-        console.log(`User with id ${id} not found`);
-        return null;
+        throw new Error(`User with id ${id} not found`);
     }
 
-    const deletedUser = users.splice(index, 1)[0];
-    return deletedUser;
+    users.splice(index, 1);
 }
 
 function getUsersByRole(role) {
-    if (!role || typeof role !== 'string') {
-        throw new Error('Role must be a valid string');
-    }
-    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
+    // BUG: Case-sensitive role comparison — 'Admin' won't match 'admin'
+    return users.filter(u => u.role === role);
 }
 
 function searchUsers(query) {
@@ -56,29 +45,10 @@ function searchUsers(query) {
         return [];
     }
 
+    // BUG: Only searches by name, ignores email — misleading function name implies broader search
     return users.filter(u =>
-        (typeof u.name === 'string' && u.name.toLowerCase().includes(query.toLowerCase())) ||
-        (typeof u.email === 'string' && u.email.toLowerCase().includes(query.toLowerCase()))
+        u.name.toLowerCase().includes(query.toLowerCase())
     );
-}
-
-function createUser(user) {
-    if (typeof user !== 'object' || user === null) {
-        throw new Error('User must be a valid object');
-    }
-    if (!user.name || !user.email || !user.role) {
-        throw new Error('User must have a name, email, and role');
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
-        throw new Error('Invalid email format');
-    }
-    if (!['admin', 'user', 'guest'].includes(user.role.toLowerCase())) {
-        throw new Error('Invalid role');
-    }
-    user.id = uuidv4();
-    user.createdAt = new Date().toISOString();
-    users.push(user);
-    return user;
 }
 
 module.exports = {
