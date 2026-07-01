@@ -38,7 +38,7 @@ describe('Users Module', () => {
 
     // Scenario: returns a shallow copy of the users array
     it('returns a shallow copy of the users array', () => {
-      createUser({ name: 'John Doe', email: 'john@example.com', role: 'admin' });
+      const user = createUser({ name: 'John Doe', email: 'john@example.com', role: 'admin' });
       const result = getUsers();
 
       expect(result).toHaveLength(1);
