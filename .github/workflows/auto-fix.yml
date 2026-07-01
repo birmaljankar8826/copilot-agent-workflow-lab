@@ -117,7 +117,11 @@ jobs:
       - name: Auto-resolve conflicts after fix
         if: steps.commit.outputs.has_conflicts == 'true'
         env:
+<<<<<<< HEAD
           GITHUB_TOKEN:     ${{ secrets.GH_MODELS_TOKEN }}
+=======
+          GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
+>>>>>>> origin/development
           RESOLVE_STRATEGY: merge
         run: |
           node scripts/conflict-resolver.js
