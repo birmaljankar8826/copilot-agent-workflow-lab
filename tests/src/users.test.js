@@ -1,10 +1,10 @@
-const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../src/users');
+const { createUser, getUsers, getUserById, updateUser, deleteUser, getUsersByRole, searchUsers } = require('../../src/users');
 
 let users;
 
 beforeEach(() => {
   jest.resetModules();
-  users = require('../src/users');
+  users = require('../../src/users');
 });
 
 describe('Users Module', () => {
