@@ -1,14 +1,14 @@
 const users = []; 
 
 function getUsers() {
-    // BUG: Returns the internal array directly — callers can mutate it
-    return users;
+    // Return a shallow copy of the users array to prevent external mutation
+    return [...users];
 }
 
 function getUserById(id) {
     const user = users.find(u => u.id === id);
-    // BUG: Missing null check — returns undefined silently instead of throwing or returning null
-    return user;
+    // Explicitly return null if user is not found
+    return user || null;
 }
 
 function updateUser(id, updates) {
@@ -18,13 +18,15 @@ function updateUser(id, updates) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    // BUG: Allows overwriting 'id' and 'createdAt' fields via spread — no field protection
-    users[index] = { ...users[index], ...updates };
+    // Filter out immutable fields before applying updates
+    const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'createdAt')
+    );
+    users[index] = { ...users[index], ...safeUpdates };
 
     return users[index];
 }
 
-// BUG: deleteUser does not confirm deletion — returns nothing (should return deleted user or success flag)
 function deleteUser(id) {
     const index = users.findIndex(u => u.id === id);
 
@@ -32,12 +34,14 @@ function deleteUser(id) {
         throw new Error(`User with id ${id} not found`);
     }
 
-    users.splice(index, 1);
+    // Return the deleted user object
+    const [deletedUser] = users.splice(index, 1);
+    return deletedUser;
 }
 
 function getUsersByRole(role) {
-    // BUG: Case-sensitive role comparison — 'Admin' won't match 'admin'
-    return users.filter(u => u.role === role);
+    // Perform case-insensitive role comparison
+    return users.filter(u => u.role.toLowerCase() === role.toLowerCase());
 }
 
 function searchUsers(query) {
@@ -45,10 +49,27 @@ function searchUsers(query) {
         return [];
     }
 
-    // BUG: Only searches by name, ignores email — misleading function name implies broader search
+    // Search by both name and email
     return users.filter(u =>
-        u.name.toLowerCase().includes(query.toLowerCase())
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())
     );
+}
+
+// Define the createUser function
+function createUser(user) {
+    if (!user || typeof user !== 'object') {
+        throw new Error('Invalid user object');
+    }
+
+    const newUser = {
+        ...user,
+        id: user.id || String(Date.now()), // Generate an ID if not provided
+        createdAt: new Date().toISOString(),
+    };
+
+    users.push(newUser);
+    return newUser;
 }
 
 module.exports = {
