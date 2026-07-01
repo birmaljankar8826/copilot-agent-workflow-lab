@@ -81,6 +81,10 @@ beforeEach(() => {
 });
 ```
 
+**NEVER keep a top-level `require` of the module under test alongside a `beforeEach` reset.**
+Remove the top-level `require` entirely and declare ALL exported functions with `let`.
+If you leave a top-level `require` in place, the `let` variables will shadow it but the test body will still call the stale top-level bindings, causing state to leak across tests.
+
 ---
 
 ## Output format
@@ -94,7 +98,7 @@ Return ONLY valid JSON — no markdown fences:
     {
       "file": "relative/path/to/source.js",
       "issue": "description of what is wrong in the source code",
-      "fix": "description of what change is needed to make it correct"
+      "fixedSourceCode": "complete corrected source file content as a string"
     }
   ]
 }
@@ -102,4 +106,5 @@ Return ONLY valid JSON — no markdown fences:
 
 - Always include `fixedTestCode` with the corrected test file
 - Include `sourceCodeFixes` entries whenever the failure is caused by a bug in the source code
+- Each `sourceCodeFixes` entry MUST include `fixedSourceCode` — the complete corrected file, not just a description
 - Use an empty array `[]` for `sourceCodeFixes` if only the test file needed changes

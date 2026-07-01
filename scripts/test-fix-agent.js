@@ -93,7 +93,6 @@ async function run() {
     console.log(`Fixing ${failingFiles.size} failing file(s): ${[...failingFiles].join(', ')}`);
 
     const results = [];
-    const sourceCodeFixes = [];
 
     for (const testFile of failingFiles) {
       if (!fs.existsSync(testFile)) {
@@ -114,62 +113,22 @@ async function run() {
         results.push(testFile);
       }
 
-      // Apply source code fixes if the agent identified code bugs
+      // Apply source code fixes directly from the agent's fixedSourceCode
       if (result.sourceCodeFixes && result.sourceCodeFixes.length > 0) {
         for (const fix of result.sourceCodeFixes) {
-          console.log(`⚠️  Source code fix needed: ${fix.file} — ${fix.issue}`);
-          sourceCodeFixes.push(fix);
+          console.log(`⚠️  Source code fix: ${fix.file} — ${fix.issue}`);
+          if (!fix.fixedSourceCode) {
+            console.error(`  Skipping ${fix.file}: no fixedSourceCode provided`);
+            continue;
+          }
+          if (!fs.existsSync(fix.file)) {
+            console.error(`  Skipping ${fix.file}: file not found`);
+            continue;
+          }
+          fs.writeFileSync(fix.file, fix.fixedSourceCode);
+          console.log(`✅ Fixed source: ${fix.file}`);
+          results.push(fix.file);
         }
-      }
-    }
-
-    // Apply source code fixes using auto-fix agent instructions
-    if (sourceCodeFixes.length > 0) {
-      console.log(`\nApplying ${sourceCodeFixes.length} source code fix(es)...`);
-      const { OpenAI: OAI } = require('openai');
-      const autoFixInstructions = fs.readFileSync('.github/agents/auto-fix-agent.md', 'utf8')
-        .replace(/^---[\s\S]*?---\n/, '').trim();
-
-      const bySourceFile = {};
-      for (const fix of sourceCodeFixes) {
-        if (!bySourceFile[fix.file]) bySourceFile[fix.file] = [];
-        bySourceFile[fix.file].push(fix);
-      }
-
-      for (const [filePath, fixes] of Object.entries(bySourceFile)) {
-        if (!fs.existsSync(filePath)) {
-          console.error(`Source file not found: ${filePath}`);
-          continue;
-        }
-
-        const fileContent = fs.readFileSync(filePath, 'utf8');
-        const issueList = fixes
-          .map((f, idx) => `${idx + 1}. ${f.issue} — Fix: ${f.fix}`)
-          .join('\n');
-
-        const fixResponse = await client.chat.completions.create({
-          model: 'gpt-4o',
-          temperature: 0.1,
-          max_tokens: 4096,
-          messages: [{
-            role: 'user',
-            content: `${autoFixInstructions}
-
-FILE: ${filePath}
-
-ISSUES TO FIX:
-${issueList}
-
-CURRENT CODE:
-${fileContent}`
-          }]
-        });
-
-        let fixedSource = fixResponse.choices?.[0]?.message?.content || fileContent;
-        fixedSource = fixedSource.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
-        fs.writeFileSync(filePath, fixedSource + '\n');
-        console.log(`✅ Fixed source: ${filePath}`);
-        results.push(filePath);
       }
     }
 
