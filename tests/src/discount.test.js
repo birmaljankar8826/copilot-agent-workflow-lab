@@ -1,7 +1,7 @@
 const { addDiscount, applyDiscount, getDiscount, removeDiscount } = require('../../src/discount');
 
 // Reset module state before each test
-let addDiscount, applyDiscount, getDiscount, removeDiscount, discounts;
+let discounts;
 beforeEach(() => {
   jest.resetModules();
   ({ addDiscount, applyDiscount, getDiscount, removeDiscount } = require('../../src/discount'));
