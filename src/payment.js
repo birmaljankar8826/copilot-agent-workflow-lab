@@ -1,3 +1,8 @@
+FILE: src/payment.js
+
+```javascript
+const { v4: uuidv4 } = require('uuid');
+
 const payments = [];
 
 function processPayment(payment) {
@@ -7,12 +12,15 @@ function processPayment(payment) {
   if (!payment.method || !['card', 'cash', 'online'].includes(payment.method)) {
     throw new Error('Invalid payment: method must be card, cash, or online');
   }
-  const record = { ...payment, id: `PAY-${Date.now()}`, status: 'completed' };
+  const record = { ...payment, id: `PAY-${uuidv4()}`, status: 'completed' };
   payments.push(record);
   return record;
 }
 
 function refundPayment(id) {
+  if (!id || typeof id !== 'string') {
+    throw new Error('Invalid id: id must be a valid string');
+  }
   const index = payments.findIndex(p => p.id === id);
   if (index === -1) {
     throw new Error(`Payment ${id} not found`);
@@ -20,18 +28,29 @@ function refundPayment(id) {
   if (payments[index].status === 'refunded') {
     throw new Error(`Payment ${id} already refunded`);
   }
-  payments[index] = { ...payments[index], status: 'refunded' };
-  return payments[index];
+  const updatedPayment = { ...payments[index], status: 'refunded' };
+  payments[index] = updatedPayment;
+  return updatedPayment;
 }
 
 function getPayment(id) {
-  return payments.find(p => p.id === id) || null;
+  const payment = payments.find(p => p.id === id);
+  if (!payment) {
+    throw new Error(`Payment ${id} not found`);
+  }
+  return payment;
 }
 
+let totalCollected = 0;
+
 function getTotalCollected() {
-  return payments
-    .filter(p => p.status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
+  totalCollected = payments.reduce((sum, p) => {
+    if (p.status === 'completed' && typeof p.amount === 'number' && p.amount > 0) {
+      return sum + p.amount;
+    }
+    return sum;
+  }, 0);
+  return totalCollected;
 }
 
 module.exports = { processPayment, refundPayment, getPayment, getTotalCollected };
