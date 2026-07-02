@@ -1,6 +1,6 @@
 [
   {
-    "source": "src/inventory.js",
-    "test": "tests/src/inventory.test.js"
+    "source": "src/discount.js",
+    "test": "tests/src/discount.test.js"
   }
 ]
