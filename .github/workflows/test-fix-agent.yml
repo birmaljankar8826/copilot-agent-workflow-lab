@@ -53,13 +53,29 @@ jobs:
           git config user.name "AI Test Fix Agent"
           git config user.email "actions@github.com"
           git add tests/
+          if [ -f fix_results.txt ] && [ -s fix_results.txt ]; then
+            while IFS= read -r file; do
+              case "$file" in
+                .github/*|*.yml|*.yaml) continue ;;
+              esac
+              [ -f "$file" ] && git add "$file"
+            done < fix_results.txt
+          fi
           if git diff --cached --quiet; then
-            echo "No test changes to commit"
+            echo "No changes to commit"
           else
             git stash --include-untracked
             git pull --rebase origin ${{ inputs.base_branch }}
             git stash pop || true
             git add tests/
+            if [ -f fix_results.txt ] && [ -s fix_results.txt ]; then
+              while IFS= read -r file; do
+                case "$file" in
+                  .github/*|*.yml|*.yaml) continue ;;
+                esac
+                [ -f "$file" ] && git add "$file"
+              done < fix_results.txt
+            fi
             git commit -m "fix: test cases auto-fixed (attempt ${{ inputs.attempt }})"
             git push origin ${{ inputs.base_branch }}
           fi

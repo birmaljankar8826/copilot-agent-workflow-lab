@@ -62,6 +62,7 @@ For each exported function in the file:
 - Do NOT duplicate existing test cases
 - Return the complete test file
 - Add a single-line comment above every `it()` block (e.g. `// Scenario: returns null when item not found`)
+- **Use the exact require path provided in the prompt** — do NOT compute or modify require paths yourself
 
 ### Pattern for functions that compute a result
 

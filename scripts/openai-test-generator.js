@@ -22,6 +22,10 @@ function getTestFilePath(sourceFile) {
 
 async function generateTestForFile(filePath, existingTestCode = null) {
   const sourceCode = fs.readFileSync(filePath, "utf8");
+  const testFile = getTestFilePath(filePath);
+  const relativeImportPath = path.relative(path.dirname(testFile), filePath)
+    .replace(/\\/g, '/')
+    .replace(/\.js$/, '');
 
   const existingTestSection = existingTestCode
     ? `Existing test file (preserve all existing tests, only add tests for new/changed code):
@@ -41,6 +45,7 @@ ${existingTestCode}`
         content: `${instructions}
 
 Source file: ${filePath}
+Require path (use this EXACTLY to import the source module): require('${relativeImportPath}')
 
 Source code:
 ${sourceCode}
