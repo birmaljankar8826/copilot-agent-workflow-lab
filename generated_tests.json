@@ -1,6 +1,6 @@
 [
   {
-    "source": "src/discount.js",
-    "test": "tests/src/discount.test.js"
+    "source": "src/payment.js",
+    "test": "tests/src/payment.test.js"
   }
 ]
