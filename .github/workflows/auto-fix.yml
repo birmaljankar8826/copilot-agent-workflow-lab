@@ -12,10 +12,7 @@ permissions:
 
 jobs:
   auto-fix:
-    # Only run when someone comments /fix on a PR
-    if: |
-      github.event.issue.pull_request != null &&
-      contains(github.event.comment.body, '/fix')
+    if: github.event.issue.pull_request != null && contains(github.event.comment.body, '/fix')
     runs-on: ubuntu-latest
 
     steps:
