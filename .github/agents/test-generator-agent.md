@@ -90,23 +90,20 @@ it('returns the deleted item', () => {
 });
 ```
 
-### CRITICAL — Test Isolation
+### CRITICAL — What NOT to include in your response
 
-If the module under test holds any in-memory state (arrays, objects, Maps) at module level, reset it between tests using `jest.resetModules()` and re-requiring in `beforeEach`:
+The `let` variable declarations, `beforeEach`, `jest.resetModules()`, and the module `require` are all generated programmatically for you. **DO NOT include any of these in your response.** The scaffold shown above is exactly what will be prepended to your output.
 
-```javascript
-let fnA, fnB;
-beforeEach(() => {
-  jest.resetModules();
-  ({ fnA, fnB } = require('./path/to/module'));
-});
-```
+Your response contains ONLY:
+- `describe()` blocks with `it()` test cases
+- Any `jest.mock()` calls needed for external dependencies (reported separately in the `mocks` field)
 
-- NEVER reset state with a local variable copy — that does not affect the module's internal state
-- If the module has NO in-memory state (pure functions), a normal top-level require is fine
-- **NEVER declare the module's exported functions with `const` at the top level AND also reassign them in `beforeEach`** — use `let` with no initializer at the top, assign only inside `beforeEach`
-- **NEVER access internal (non-exported) module variables** — only assert on values returned by exported functions
-- **NEVER use `__get__`, `rewire`, or any pattern that accesses private module internals** — these are not available without the `rewire` package; verify module behaviour through exported functions only
+**NEVER include** in `testCases`:
+- `let` or `const` variable declarations
+- `beforeEach()`
+- `jest.resetModules()`
+- `require()` calls for the module under test
+- `__get__`, `rewire`, or access to private module internals
 
 ---
 
@@ -116,6 +113,7 @@ Return ONLY valid JSON — no markdown fences:
 
 ```
 {
-  "testCode": "complete Jest test file as a string"
+  "mocks": "jest.mock() call(s) for external dependencies if needed, e.g. jest.mock('uuid', () => ...) — empty string if not needed",
+  "testCases": "ONLY the describe() and it() blocks — no let, no const, no beforeEach, no require, no jest.resetModules()"
 }
 ```

@@ -69,35 +69,19 @@ For each failing test:
 - Do NOT change a correct test assertion to match buggy source behavior
 - Add a single-line comment above each `it()` block
 
-### CRITICAL — Test Isolation
+### CRITICAL — What NOT to include in your response
 
-If the source module holds in-memory state at module level, use `jest.resetModules()` in `beforeEach`:
+The `let` variable declarations, `beforeEach`, `jest.resetModules()`, and the module `require` are all generated programmatically for you. **DO NOT include any of these in your response.** The scaffold shown above is exactly what will be prepended to your output.
 
-**WRONG — causes `TypeError: Assignment to constant variable`:**
-```javascript
-// ❌ NEVER do this
-const { fnA, fnB } = require('./module'); // top-level const
-beforeEach(() => {
-  jest.resetModules();
-  ({ fnA, fnB } = require('./module')); // tries to reassign const → crashes
-  internalState = require('./module').__get__('state'); // __get__ does not exist
-});
-```
+Your `testCases` field contains ONLY:
+- `describe()` blocks with corrected `it()` test cases
 
-**RIGHT — the only correct pattern:**
-```javascript
-// ✅ Always do this
-let fnA, fnB; // let with NO initializer — no top-level require at all
-beforeEach(() => {
-  jest.resetModules();
-  ({ fnA, fnB } = require('./module')); // assigns fresh module each test
-});
-```
-
-Rules:
-- **NEVER use `const` for variables reassigned in `beforeEach`** — always `let` with no initializer
-- **NEVER add a top-level `require` of the module under test** when using `jest.resetModules()` — remove it entirely
-- **NEVER use `__get__`, `rewire`, or any pattern accessing private module internals** — `__get__` is not available without the `rewire` package and will return `undefined`; verify behaviour through exported functions only
+**NEVER include** in `testCases`:
+- `let` or `const` variable declarations
+- `beforeEach()`
+- `jest.resetModules()`
+- `require()` calls for the module under test
+- `__get__`, `rewire`, or access to private module internals
 
 ---
 
@@ -107,18 +91,19 @@ Return ONLY valid JSON — no markdown fences:
 
 ```
 {
-  "fixedTestCode": "complete fixed test file content as a string",
+  "mocks": "corrected jest.mock() calls if needed (empty string if none)",
+  "testCases": "ONLY the corrected describe() and it() blocks — no let, no const, no beforeEach, no require, no jest.resetModules()",
   "sourceCodeFixes": [
     {
       "file": "relative/path/to/source.js",
       "issue": "description of what is wrong in the source code",
-      "fixedSourceCode": "complete corrected source file content as a string"
+      "fixedSourceCode": "complete corrected source file as plain text — no markdown fences"
     }
   ]
 }
 ```
 
-- Always include `fixedTestCode` with the corrected test file
-- Include `sourceCodeFixes` entries whenever the failure is caused by a bug in the source code
-- Each `sourceCodeFixes` entry MUST include `fixedSourceCode` — the complete corrected file, not just a description
-- Use an empty array `[]` for `sourceCodeFixes` if only the test file needed changes
+- `mocks`: any `jest.mock()` calls needed for external dependencies — empty string if none
+- `testCases`: only the describe/it blocks — scaffold is handled separately
+- `sourceCodeFixes`: include when the failure is caused by a bug in the source code; use `[]` if only the test logic needed fixing
+- Each `sourceCodeFixes` entry MUST include `fixedSourceCode` as plain source code — NO markdown fences, NO FILE: headers
