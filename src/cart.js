@@ -6,14 +6,18 @@ function addItem(product, quantity = 1) {
     if (!product || typeof product.price !== 'number' || product.price < 0) {
         throw new Error('Invalid product');
     }
+    if (!product.id) {
+        throw new Error('Product must have a valid id');
+    }
     if (typeof quantity !== 'number' || quantity < 1 || !Number.isInteger(quantity)) {
         throw new Error('Quantity must be a positive integer');
     }
 
     const existing = items.find(i => i.id === product.id);
     if (existing) {
-        existing.quantity += quantity;
-        return existing;
+        const updatedItem = { ...existing, quantity: existing.quantity + quantity };
+        items = items.map(i => (i.id === product.id ? updatedItem : i));
+        return updatedItem;
     }
 
     const item = { ...product, quantity, cartItemId: uuidv4() };
@@ -39,8 +43,9 @@ function updateQuantity(productId, quantity) {
     if (!item) {
         throw new Error(`Item with id ${productId} not found in cart`);
     }
-    item.quantity = quantity;
-    return item;
+    const updatedItem = { ...item, quantity };
+    items = items.map(i => (i.id === productId ? updatedItem : i));
+    return updatedItem;
 }
 
 function getItems() {
@@ -56,19 +61,24 @@ function getTotal(discountRate = 0) {
     return total < 0 ? 0 : total;
 }
 
-function applyDiscount(cart, rate) {
+function applyDiscount(rate) {
     if (typeof rate !== 'number' || rate < 0 || rate > 1) {
         throw new Error('Discount rate must be a number between 0 and 1');
     }
-    cart.discountRate = rate;
+    items = items.map(item => ({
+        ...item,
+        price: item.price * (1 - rate),
+    }));
 }
 
 function getItemCount() {
-    return items.length;
+    return items.reduce((total, item) => total + item.quantity, 0);
 }
 
 function clearCart() {
+    const clearedItems = [...items];
     items = [];
+    return clearedItems;
 }
 
 module.exports = {
