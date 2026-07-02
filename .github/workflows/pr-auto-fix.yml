@@ -1,4 +1,4 @@
-name: "Agent 2: Auto Code Fix — Fixes bugs and resolves conflicts on /fix comment"
+name: "Agent 2: Auto Code Fix"
 
 on:
   issue_comment:
@@ -7,15 +7,11 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  workflows: write
   models: read
 
 jobs:
   auto-fix:
-    # Only run when someone comments /fix on a PR
-    if: |
-      github.event.issue.pull_request != null &&
-      contains(github.event.comment.body, '/fix')
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/fix')
     runs-on: ubuntu-latest
 
     steps:
@@ -57,14 +53,13 @@ jobs:
         run: |
           > full_context.txt
           while read file; do
-            # Skip temp/generated files to prevent cat circular write errors
             case "$file" in
               *.txt|*.json) continue ;;
             esac
             if [ -f "$file" ]; then
               echo "===== FILE: $file =====" >> full_context.txt
               cat "$file" >> full_context.txt
-              echo -e "\n\n" >> full_context.txt
+              echo "" >> full_context.txt
             fi
           done < files.txt
 
@@ -92,7 +87,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Only stage source/test files — never workflow or config files
           while read file; do
             case "$file" in
               .github/*) continue ;;
@@ -106,15 +100,12 @@ jobs:
             echo "NO_CHANGES=true" >> $GITHUB_ENV
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "🤖 Auto-fix: resolve AI review findings"
-            # Check for conflicts with base before pushing
+            git commit -m "fix: auto-fix applied by AI agent"
             git fetch origin ${{ steps.pr.outputs.base_ref }}
             if git merge origin/${{ steps.pr.outputs.base_ref }}; then
-              # Merged cleanly — push
               git push origin ${{ steps.pr.outputs.head_ref }}
               echo "has_conflicts=false" >> $GITHUB_OUTPUT
             else
-              # Conflicts detected — resolve automatically
               echo "has_conflicts=true" >> $GITHUB_OUTPUT
             fi
           fi
@@ -127,22 +118,20 @@ jobs:
         run: |
           node scripts/conflict-resolver.js
 
-          # Stage all resolved files
           if [ -f resolved_files.txt ] && [ -s resolved_files.txt ]; then
             while read file; do
               [ -f "$file" ] && git add "$file"
             done < resolved_files.txt
           fi
 
-          # Verify no unmerged files remain
           STILL_UNMERGED=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
           if [ -n "$STILL_UNMERGED" ]; then
-            echo "❌ Could not auto-resolve: $STILL_UNMERGED"
+            echo "Could not auto-resolve: $STILL_UNMERGED"
             git merge --abort
             exit 1
           fi
 
-          git commit -m "🤖 Auto-fix: resolve AI review findings + merge conflicts"
+          git commit -m "fix: auto-fix applied + merge conflicts resolved"
           git push origin ${{ steps.pr.outputs.head_ref }}
 
       - name: Post summary comment on PR
@@ -150,12 +139,12 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const summary    = fs.readFileSync('fix_summary.txt', 'utf8');
-            const noChanges  = process.env.NO_CHANGES === 'true';
+            const summary   = fs.readFileSync('fix_summary.txt', 'utf8');
+            const noChanges = process.env.NO_CHANGES === 'true';
 
             const body = noChanges
-              ? `## 🤖 Auto-Fix Agent\n\n✅ No issues found — code is already clean.`
-              : `## 🤖 Auto-Fix Agent\n\n${summary}\n\n---\n**The fixes have been committed to this branch.**\nReview the changes in the **Files changed** tab, then merge when you are satisfied.`;
+              ? '## Auto-Fix Agent\n\nNo issues found — code is already clean.'
+              : '## Auto-Fix Agent\n\n' + summary + '\n\n---\n**Fixes have been committed. Review the Files changed tab and merge when satisfied.**';
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
