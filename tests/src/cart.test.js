@@ -9,7 +9,7 @@ describe('cart module', () => {
 
   beforeEach(() => {
     jest.resetModules();
-    cart = require('../src/cart');
+    cart = require('../../src/cart');
   });
 
   describe('addItem', () => {

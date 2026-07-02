@@ -17,8 +17,9 @@ function createOrder(order) {
         throw new Error('Order with the same ID already exists');
     }
     const total = order.items.reduce((sum, item) => sum + item.price, 0);
-    orders.push({ ...order, total });
-    return order;
+    const newOrder = { ...order, total };
+    orders.push(newOrder);
+    return newOrder;
 }
 
 function updateOrder(id, updates) {
