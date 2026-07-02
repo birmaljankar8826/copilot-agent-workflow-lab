@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  workflows: write
   models: read
 
 jobs:
@@ -91,8 +92,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Only stage the actual source files that were fixed — not temp files
+          # Only stage source/test files — never workflow or config files
           while read file; do
+            case "$file" in
+              .github/*) continue ;;
+              *.yml|*.yaml) continue ;;
+            esac
             if [ -f "$file" ]; then
               git add "$file"
             fi
