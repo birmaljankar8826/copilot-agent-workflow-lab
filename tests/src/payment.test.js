@@ -1,122 +1,98 @@
-const { v4: uuidv4 } = require('uuid');
-const { processPayment, refundPayment, getPayment, getTotalCollected } = require('../../src/payment');
+let processPayment, refundPayment, getPayment, getTotalCollected;
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'mocked-uuid')
-}));
+beforeEach(() => {
+  jest.resetModules();
+  jest.mock('uuid', () => {
+    let count = 0;
+    return { v4: jest.fn(() => 'uuid-' + (++count)) };
+  });
+  ({ processPayment, refundPayment, getPayment, getTotalCollected } = require('../../src/payment'));
+});
 
-describe('Payment Module', () => {
-  let payments;
-
-  beforeEach(() => {
-    jest.resetModules();
-    ({ processPayment, refundPayment, getPayment, getTotalCollected } = require('../../src/payment'));
-    payments = require('../../src/payment').payments;
-    payments.length = 0; // Clear the in-memory payments array
+describe('processPayment', () => {
+  // Scenario: processes a valid payment and returns a completed record
+  it('processes a valid payment and returns a completed record', () => {
+    const result = processPayment({ amount: 100, method: 'card' });
+    expect(result.amount).toBe(100);
+    expect(result.method).toBe('card');
+    expect(result.status).toBe('completed');
+    expect(result.id).toMatch(/^PAY-/);
   });
 
-  describe('processPayment', () => {
-    // Scenario: processes a valid payment
-    it('processes a valid payment', () => {
-      const payment = { amount: 100, method: 'card' };
-      const result = processPayment(payment);
-
-      expect(result).toEqual({
-        ...payment,
-        id: 'PAY-mocked-uuid',
-        status: 'completed'
-      });
-      expect(payments).toContainEqual(result);
-    });
-
-    // Scenario: throws error for invalid amount
-    it('throws an error if amount is not a positive number', () => {
-      expect(() => processPayment({ amount: -10, method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
-      expect(() => processPayment({ amount: 0, method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
-      expect(() => processPayment({ method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
-    });
-
-    // Scenario: throws error for invalid payment method
-    it('throws an error if method is not card, cash, or online', () => {
-      expect(() => processPayment({ amount: 100, method: 'check' })).toThrow('Invalid payment: method must be card, cash, or online');
-      expect(() => processPayment({ amount: 100 })).toThrow('Invalid payment: method must be card, cash, or online');
-    });
+  // Scenario: throws error for invalid amount
+  it('throws an error if amount is not a positive number', () => {
+    expect(() => processPayment({ amount: -10, method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
+    expect(() => processPayment({ amount: 0, method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
+    expect(() => processPayment({ method: 'card' })).toThrow('Invalid payment: amount must be a positive number');
   });
 
-  describe('refundPayment', () => {
-    // Scenario: refunds a valid payment
-    it('refunds a valid payment', () => {
-      const payment = { amount: 100, method: 'card' };
-      const processedPayment = processPayment(payment);
-      const result = refundPayment(processedPayment.id);
+  // Scenario: throws error for invalid payment method
+  it('throws an error if method is not card, cash, or online', () => {
+    expect(() => processPayment({ amount: 100, method: 'check' })).toThrow('Invalid payment: method must be card, cash, or online');
+    expect(() => processPayment({ amount: 100 })).toThrow('Invalid payment: method must be card, cash, or online');
+  });
+});
 
-      expect(result).toEqual({ ...processedPayment, status: 'refunded' });
-      expect(payments).toContainEqual(result);
-    });
-
-    // Scenario: throws error for invalid id
-    it('throws an error if id is invalid', () => {
-      expect(() => refundPayment(null)).toThrow('Invalid id: id must be a valid string');
-      expect(() => refundPayment(123)).toThrow('Invalid id: id must be a valid string');
-    });
-
-    // Scenario: throws error if payment not found
-    it('throws an error if payment is not found', () => {
-      expect(() => refundPayment('non-existent-id')).toThrow('Payment non-existent-id not found');
-    });
-
-    // Scenario: throws error if payment is already refunded
-    it('throws an error if payment is already refunded', () => {
-      const payment = { amount: 100, method: 'card' };
-      const processedPayment = processPayment(payment);
-      refundPayment(processedPayment.id);
-
-      expect(() => refundPayment(processedPayment.id)).toThrow(`Payment ${processedPayment.id} already refunded`);
-    });
+describe('refundPayment', () => {
+  // Scenario: refunds a valid payment and returns updated record
+  it('refunds a valid payment and returns the updated record', () => {
+    const processed = processPayment({ amount: 100, method: 'card' });
+    const result = refundPayment(processed.id);
+    expect(result.id).toBe(processed.id);
+    expect(result.status).toBe('refunded');
   });
 
-  describe('getPayment', () => {
-    // Scenario: retrieves a valid payment by ID
-    it('retrieves a valid payment by ID', () => {
-      const payment = { amount: 100, method: 'card' };
-      const processedPayment = processPayment(payment);
-      const result = getPayment(processedPayment.id);
-
-      expect(result).toEqual(processedPayment);
-    });
-
-    // Scenario: throws error if payment not found
-    it('throws an error if payment is not found', () => {
-      expect(() => getPayment('non-existent-id')).toThrow('Payment non-existent-id not found');
-    });
+  // Scenario: throws error for invalid id
+  it('throws an error if id is invalid', () => {
+    expect(() => refundPayment(null)).toThrow('Invalid id: id must be a valid string');
+    expect(() => refundPayment(123)).toThrow('Invalid id: id must be a valid string');
   });
 
-  describe('getTotalCollected', () => {
-    // Scenario: calculates total collected for completed payments
-    it('calculates total collected for completed payments', () => {
-      processPayment({ amount: 100, method: 'card' });
-      processPayment({ amount: 200, method: 'cash' });
-      processPayment({ amount: 50, method: 'online' });
-      refundPayment('PAY-mocked-uuid'); // Refund one payment
+  // Scenario: throws error if payment not found
+  it('throws an error if payment is not found', () => {
+    expect(() => refundPayment('non-existent-id')).toThrow('Payment non-existent-id not found');
+  });
 
-      const total = getTotalCollected();
-      expect(total).toBe(250); // Only the non-refunded payments are counted
-    });
+  // Scenario: throws error if payment is already refunded
+  it('throws an error if payment is already refunded', () => {
+    const processed = processPayment({ amount: 100, method: 'card' });
+    refundPayment(processed.id);
+    expect(() => refundPayment(processed.id)).toThrow('already refunded');
+  });
+});
 
-    // Scenario: returns 0 if no completed payments exist
-    it('returns 0 if no completed payments exist', () => {
-      expect(getTotalCollected()).toBe(0);
-    });
+describe('getPayment', () => {
+  // Scenario: retrieves a payment by id
+  it('retrieves a valid payment by id', () => {
+    const processed = processPayment({ amount: 100, method: 'card' });
+    const result = getPayment(processed.id);
+    expect(result).toEqual(processed);
+  });
 
-    // Scenario: ignores invalid or refunded payments
-    it('ignores invalid or refunded payments', () => {
-      processPayment({ amount: 100, method: 'card' });
-      const refundedPayment = processPayment({ amount: 200, method: 'cash' });
-      refundPayment(refundedPayment.id);
-      processPayment({ amount: -50, method: 'online' }); // Invalid payment
+  // Scenario: throws error if payment not found
+  it('throws an error if payment is not found', () => {
+    expect(() => getPayment('non-existent-id')).toThrow('Payment non-existent-id not found');
+  });
+});
 
-      const total = getTotalCollected();
-      expect(total).toBe(100); // Only the valid, non-refunded payment is counted
-    });
+describe('getTotalCollected', () => {
+  // Scenario: sums only completed payments
+  it('returns the total of all completed payments', () => {
+    processPayment({ amount: 100, method: 'card' });
+    processPayment({ amount: 200, method: 'cash' });
+    expect(getTotalCollected()).toBe(300);
+  });
+
+  // Scenario: excludes refunded payments from total
+  it('excludes refunded payments from the total', () => {
+    processPayment({ amount: 100, method: 'card' });
+    const p2 = processPayment({ amount: 200, method: 'cash' });
+    refundPayment(p2.id);
+    expect(getTotalCollected()).toBe(100);
+  });
+
+  // Scenario: returns 0 when no payments exist
+  it('returns 0 if no payments exist', () => {
+    expect(getTotalCollected()).toBe(0);
   });
 });

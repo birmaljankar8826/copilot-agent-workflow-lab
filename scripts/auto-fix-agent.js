@@ -38,6 +38,8 @@ ${fileContent}`,
   });
 
   let fixed = response.choices?.[0]?.message?.content || fileContent;
+  // Strip markdown wrappers: FILE: header, code fences
+  fixed = fixed.replace(/^FILE:.*\n+/, "");
   fixed = fixed.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "").trim();
   return fixed;
 }
