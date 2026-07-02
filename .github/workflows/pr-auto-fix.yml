@@ -1,0 +1,155 @@
+name: "Agent 2: Auto Code Fix"
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  workflows: write
+  models: read
+
+jobs:
+  auto-fix:
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/fix')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('base_ref', pr.data.base.ref);
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref:         ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+          token:       ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ steps.pr.outputs.base_ref }}
+          git diff origin/${{ steps.pr.outputs.base_ref }}...HEAD > diff.txt
+          git diff --name-only origin/${{ steps.pr.outputs.base_ref }}...HEAD > files.txt
+
+      - name: Build full context
+        run: |
+          > full_context.txt
+          while read file; do
+            case "$file" in
+              *.txt|*.json) continue ;;
+            esac
+            if [ -f "$file" ]; then
+              echo "===== FILE: $file =====" >> full_context.txt
+              cat "$file" >> full_context.txt
+              echo "" >> full_context.txt
+            fi
+          done < files.txt
+
+      - name: Run ESLint
+        run: |
+          JS_FILES=$(grep '\.js$' files.txt | tr '\n' ' ')
+          if [ -n "$JS_FILES" ]; then
+            npx eslint $JS_FILES --format json > eslint_output.json || true
+          else
+            echo "[]" > eslint_output.json
+          fi
+
+      - name: Run AI Review to get findings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+        run: node scripts/openai-pr-agent.js
+
+      - name: Run Auto-Fix Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+        run: node scripts/auto-fix-agent.js
+
+      - name: Commit fixes directly to PR branch
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          while read file; do
+            case "$file" in
+              .github/*) continue ;;
+              *.yml|*.yaml) continue ;;
+            esac
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done < files.txt
+          if git diff --staged --quiet; then
+            echo "NO_CHANGES=true" >> $GITHUB_ENV
+            echo "has_conflicts=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "fix: auto-fix applied by AI agent"
+            git fetch origin ${{ steps.pr.outputs.base_ref }}
+            if git merge origin/${{ steps.pr.outputs.base_ref }}; then
+              git push origin ${{ steps.pr.outputs.head_ref }}
+              echo "has_conflicts=false" >> $GITHUB_OUTPUT
+            else
+              echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Auto-resolve conflicts after fix
+        if: steps.commit.outputs.has_conflicts == 'true'
+        env:
+          GITHUB_TOKEN:     ${{ secrets.GH_MODELS_TOKEN }}
+          RESOLVE_STRATEGY: merge
+        run: |
+          node scripts/conflict-resolver.js
+
+          if [ -f resolved_files.txt ] && [ -s resolved_files.txt ]; then
+            while read file; do
+              [ -f "$file" ] && git add "$file"
+            done < resolved_files.txt
+          fi
+
+          STILL_UNMERGED=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+          if [ -n "$STILL_UNMERGED" ]; then
+            echo "Could not auto-resolve: $STILL_UNMERGED"
+            git merge --abort
+            exit 1
+          fi
+
+          git commit -m "fix: auto-fix applied + merge conflicts resolved"
+          git push origin ${{ steps.pr.outputs.head_ref }}
+
+      - name: Post summary comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary   = fs.readFileSync('fix_summary.txt', 'utf8');
+            const noChanges = process.env.NO_CHANGES === 'true';
+
+            const body = noChanges
+              ? '## Auto-Fix Agent\n\nNo issues found — code is already clean.'
+              : '## Auto-Fix Agent\n\n' + summary + '\n\n---\n**Fixes have been committed. Review the Files changed tab and merge when satisfied.**';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              body
+            });
