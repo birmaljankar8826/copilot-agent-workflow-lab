@@ -45,10 +45,12 @@ jobs:
         run: |
           set +e
           npm test -- --coverage 2>&1 | tee jest_output.txt
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          JEST_EXIT=${PIPESTATUS[0]}
+          echo "exit_code=$JEST_EXIT" >> $GITHUB_OUTPUT
+          exit $JEST_EXIT
 
       - name: Post Success Comment
-        if: steps.jest.outputs.exit_code == '0'
+        if: steps.jest.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -62,7 +64,7 @@ jobs:
             });
 
       - name: Trigger Test Fix Agent
-        if: steps.jest.outputs.exit_code != '0' && inputs.attempt < '3'
+        if: always() && steps.jest.outcome == 'failure' && inputs.attempt < '3'
         uses: actions/github-script@v7
         with:
           script: |
@@ -80,7 +82,7 @@ jobs:
             console.log('Test Fix Agent triggered for attempt ' + (Number('${{ inputs.attempt }}') + 1));
 
       - name: Post Failure Comment
-        if: steps.jest.outputs.exit_code != '0' && inputs.attempt >= '3'
+        if: always() && steps.jest.outcome == 'failure' && inputs.attempt >= '3'
         uses: actions/github-script@v7
         with:
           script: |

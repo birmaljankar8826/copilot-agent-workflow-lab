@@ -73,17 +73,31 @@ For each failing test:
 
 If the source module holds in-memory state at module level, use `jest.resetModules()` in `beforeEach`:
 
+**WRONG — causes `TypeError: Assignment to constant variable`:**
 ```javascript
-let fnA, fnB;
+// ❌ NEVER do this
+const { fnA, fnB } = require('./module'); // top-level const
 beforeEach(() => {
   jest.resetModules();
-  ({ fnA, fnB } = require('./path/to/module'));
+  ({ fnA, fnB } = require('./module')); // tries to reassign const → crashes
+  internalState = require('./module').__get__('state'); // __get__ does not exist
 });
 ```
 
-**NEVER keep a top-level `require` of the module under test alongside a `beforeEach` reset.**
-Remove the top-level `require` entirely and declare ALL exported functions with `let`.
-If you leave a top-level `require` in place, the `let` variables will shadow it but the test body will still call the stale top-level bindings, causing state to leak across tests.
+**RIGHT — the only correct pattern:**
+```javascript
+// ✅ Always do this
+let fnA, fnB; // let with NO initializer — no top-level require at all
+beforeEach(() => {
+  jest.resetModules();
+  ({ fnA, fnB } = require('./module')); // assigns fresh module each test
+});
+```
+
+Rules:
+- **NEVER use `const` for variables reassigned in `beforeEach`** — always `let` with no initializer
+- **NEVER add a top-level `require` of the module under test** when using `jest.resetModules()` — remove it entirely
+- **NEVER use `__get__`, `rewire`, or any pattern accessing private module internals** — `__get__` is not available without the `rewire` package and will return `undefined`; verify behaviour through exported functions only
 
 ---
 
