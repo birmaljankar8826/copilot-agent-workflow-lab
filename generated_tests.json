@@ -1,6 +1,6 @@
 [
   {
-    "source": "src/users.js",
-    "test": "tests/src/users.test.js"
+    "source": "src/cart.js",
+    "test": "tests/src/cart.test.js"
   }
 ]
