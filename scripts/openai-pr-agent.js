@@ -73,7 +73,7 @@ ${eslintSummary}
         },
       ],
       temperature: 0.1,
-      max_tokens: 4096,
+      max_tokens: 16384,
       response_format: { type: "json_object" },
     });
 
@@ -84,7 +84,17 @@ ${eslintSummary}
       reviewData = JSON.parse(rawContent);
     } catch (e) {
       console.error("Failed to parse AI JSON:", e.message);
-      reviewData = { summary: "⚠️ AI returned invalid JSON.", verdict: "UNKNOWN", comments: [] };
+      console.error("Raw content length:", rawContent.length);
+      // Response was likely truncated — try to recover by closing open braces
+      try {
+        const openBraces = (rawContent.match(/\{/g) || []).length;
+        const closeBraces = (rawContent.match(/\}/g) || []).length;
+        const recovered = rawContent.trimEnd() + "}".repeat(openBraces - closeBraces);
+        reviewData = JSON.parse(recovered);
+        console.log("Recovered truncated JSON successfully");
+      } catch (e2) {
+        reviewData = { summary: "⚠️ AI returned invalid JSON. Response may have been truncated.", verdict: "UNKNOWN", comments: [] };
+      }
     }
 
     reviewData.verdict  = reviewData.verdict  || "UNKNOWN";
