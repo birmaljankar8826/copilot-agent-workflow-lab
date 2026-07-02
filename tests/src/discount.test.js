@@ -1,12 +1,8 @@
-const { addDiscount, applyDiscount, getDiscount, removeDiscount } = require('../../src/discount');
+let addDiscount, applyDiscount, getDiscount, removeDiscount;
 
-// Reset module state before each test
-let discounts;
 beforeEach(() => {
   jest.resetModules();
   ({ addDiscount, applyDiscount, getDiscount, removeDiscount } = require('../../src/discount'));
-  discounts = require('../../src/discount').__get__('discounts');
-  discounts.length = 0; // Clear the in-memory state
 });
 
 describe('addDiscount', () => {
@@ -15,7 +11,6 @@ describe('addDiscount', () => {
     const discount = { code: 'SUMMER', rate: 0.2, extraField: 'ignored' };
     const result = addDiscount(discount);
     expect(result).toEqual({ code: 'SUMMER', rate: 0.2 });
-    expect(discounts).toContainEqual({ code: 'SUMMER', rate: 0.2 });
   });
 
   // Scenario: throws error for invalid discount object
@@ -93,7 +88,7 @@ describe('removeDiscount', () => {
     addDiscount({ code: 'SUMMER', rate: 0.2 });
     const result = removeDiscount('SUMMER');
     expect(result).toEqual({ code: 'SUMMER', rate: 0.2 });
-    expect(discounts).not.toContainEqual({ code: 'SUMMER', rate: 0.2 });
+    expect(getDiscount('SUMMER')).toBeNull();
   });
 
   // Scenario: throws error for invalid discount code

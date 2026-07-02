@@ -106,6 +106,7 @@ beforeEach(() => {
 - If the module has NO in-memory state (pure functions), a normal top-level require is fine
 - **NEVER declare the module's exported functions with `const` at the top level AND also reassign them in `beforeEach`** — use `let` with no initializer at the top, assign only inside `beforeEach`
 - **NEVER access internal (non-exported) module variables** — only assert on values returned by exported functions
+- **NEVER use `__get__`, `rewire`, or any pattern that accesses private module internals** — these are not available without the `rewire` package; verify module behaviour through exported functions only
 
 ---
 
