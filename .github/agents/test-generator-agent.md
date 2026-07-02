@@ -104,6 +104,8 @@ beforeEach(() => {
 
 - NEVER reset state with a local variable copy — that does not affect the module's internal state
 - If the module has NO in-memory state (pure functions), a normal top-level require is fine
+- **NEVER declare the module's exported functions with `const` at the top level AND also reassign them in `beforeEach`** — use `let` with no initializer at the top, assign only inside `beforeEach`
+- **NEVER access internal (non-exported) module variables** — only assert on values returned by exported functions
 
 ---
 

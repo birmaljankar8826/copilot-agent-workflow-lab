@@ -1,11 +1,8 @@
-const { addItem, getTotalStock, getItemById } = require('../../src/inventory');
+let addItem, getTotalStock, getItemById;
 
-// Reset the module state before each test
-let items;
 beforeEach(() => {
   jest.resetModules();
   ({ addItem, getTotalStock, getItemById } = require('../../src/inventory'));
-  items = require('../../src/inventory').items;
 });
 
 describe('addItem', () => {
@@ -14,7 +11,6 @@ describe('addItem', () => {
     const item = { id: 'item1', stock: 10 };
     const result = addItem(item);
     expect(result).toEqual(item);
-    expect(items).toContainEqual(item);
   });
 
   // Scenario: throws an error if item is missing required properties

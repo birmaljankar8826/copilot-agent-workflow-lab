@@ -43,6 +43,7 @@ jobs:
         id: jest
         shell: bash
         run: |
+          set +e
           npm test -- --coverage 2>&1 | tee jest_output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
