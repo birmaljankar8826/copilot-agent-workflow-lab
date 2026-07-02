@@ -48,19 +48,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/test-fix-agent.js
 
-      - name: Commit Fixed Tests
+      - name: Commit Fixed Files
         run: |
           git config user.name "AI Test Fix Agent"
           git config user.email "actions@github.com"
-          git add tests/
+          git add tests/ src/
           if git diff --cached --quiet; then
-            echo "No test changes to commit"
+            echo "No changes to commit"
           else
             git stash --include-untracked
             git pull --rebase origin ${{ inputs.base_branch }}
             git stash pop || true
-            git add tests/
-            git commit -m "fix: test cases auto-fixed (attempt ${{ inputs.attempt }})"
+            git add tests/ src/
+            git commit -m "fix: auto-fixed tests and source (attempt ${{ inputs.attempt }})"
             git push origin ${{ inputs.base_branch }}
           fi
 
