@@ -1,4 +1,6 @@
-const notifications = [];
+const { v4: uuidv4 } = require('uuid');
+
+const notifications = new Map();
 
 function sendNotification(notification) {
   if (!notification || !notification.userId || typeof notification.userId !== 'string') {
@@ -8,13 +10,16 @@ function sendNotification(notification) {
     throw new Error('Invalid notification: message must be a non-empty string');
   }
   const record = {
-    id: 'NOTIF-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+    id: uuidv4(),
     userId: notification.userId,
     message: notification.message,
     read: false,
     createdAt: new Date().toISOString()
   };
-  notifications.push(record);
+  if (!notifications.has(notification.userId)) {
+    notifications.set(notification.userId, []);
+  }
+  notifications.get(notification.userId).push(record);
   return record;
 }
 
@@ -22,26 +27,30 @@ function markAsRead(id) {
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid id: id must be a non-empty string');
   }
-  const index = notifications.findIndex(n => n.id === id);
-  if (index === -1) {
-    throw new Error('Notification ' + id + ' not found');
+  for (const [userId, userNotifications] of notifications.entries()) {
+    const index = userNotifications.findIndex(n => n.id === id);
+    if (index !== -1) {
+      const updatedNotification = { ...userNotifications[index], read: true };
+      userNotifications[index] = updatedNotification;
+      return updatedNotification;
+    }
   }
-  notifications[index] = { ...notifications[index], read: true };
-  return notifications[index];
+  throw new Error('Notification ' + id + ' not found');
 }
 
 function getUnread(userId) {
   if (!userId || typeof userId !== 'string') {
     throw new Error('Invalid userId: must be a non-empty string');
   }
-  return notifications.filter(n => n.userId === userId && !n.read);
+  const userNotifications = notifications.get(userId) || [];
+  return userNotifications.filter(n => !n.read);
 }
 
 function getAll(userId) {
   if (!userId || typeof userId !== 'string') {
     throw new Error('Invalid userId: must be a non-empty string');
   }
-  return notifications.filter(n => n.userId === userId);
+  return notifications.get(userId) || [];
 }
 
 module.exports = { sendNotification, markAsRead, getUnread, getAll };
