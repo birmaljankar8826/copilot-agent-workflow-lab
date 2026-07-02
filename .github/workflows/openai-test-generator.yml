@@ -42,6 +42,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/openai-test-generator.js
 
+      - name: Self-heal generated tests before committing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+        run: |
+          set +e
+          npm test -- --passWithNoTests 2>&1 | tee jest_output.txt
+          JEST_EXIT=${PIPESTATUS[0]}
+          if [ $JEST_EXIT -ne 0 ]; then
+            echo "Generated tests have failures — running self-heal..."
+            node scripts/test-fix-agent.js
+            npm test -- --passWithNoTests 2>&1 | tee jest_output.txt
+            JEST_EXIT=${PIPESTATUS[0]}
+          fi
+          if [ $JEST_EXIT -ne 0 ]; then
+            echo "WARNING: tests still failing after self-heal — committing anyway for Agent 5 to fix"
+          else
+            echo "All tests pass — ready to commit"
+          fi
+
       - name: Commit Generated Tests
         id: commit
         run: |

@@ -48,7 +48,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
         run: node scripts/test-fix-agent.js
 
+      - name: Verify fixes pass before committing
+        id: verify
+        shell: bash
+        run: |
+          set +e
+          npm test -- --passWithNoTests 2>&1 | tee verify_output.txt
+          JEST_EXIT=${PIPESTATUS[0]}
+          echo "exit_code=$JEST_EXIT" >> $GITHUB_OUTPUT
+          if [ $JEST_EXIT -eq 0 ]; then
+            echo "All tests pass — committing fixes"
+          else
+            echo "Tests still failing after fix — skipping commit to avoid overwriting with broken code"
+            cat verify_output.txt
+          fi
+
       - name: Commit Fixed Tests
+        if: steps.verify.outputs.exit_code == '0'
         run: |
           git config user.name "AI Test Fix Agent"
           git config user.email "actions@github.com"
